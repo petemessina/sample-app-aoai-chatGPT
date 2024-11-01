@@ -5,6 +5,7 @@ import logging
 import uuid
 import httpx
 import asyncio
+from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
 from quart import (
     Blueprint,
     Quart,
@@ -49,11 +50,21 @@ def create_app():
     @app.before_serving
     async def init():
         try:
-            app.cosmos_conversation_client = await init_cosmosdb_client()
+            app.cosmos_conversation_client = await init_cosmosdb_client(
+                database_name=app_settings.chat_history.database,
+                container_name=app_settings.chat_history.conversations_container
+            )
+
+            app.cosmos_document_client = await init_cosmosdb_client(
+                database_name=app_settings.document_upload.database,
+                container_name=app_settings.document_upload.documents_container,
+            )
+            
             cosmos_db_ready.set()
         except Exception as e:
             logging.exception("Failed to initialize CosmosDB client")
             app.cosmos_conversation_client = None
+            app.cosmos_document_client = None
             raise e
     
     return app
@@ -101,6 +112,7 @@ frontend_settings = {
         "chat_description": app_settings.ui.chat_description,
         "show_share_button": app_settings.ui.show_share_button,
         "show_chat_history_button": app_settings.ui.show_chat_history_button,
+        "show_document_upload_button": app_settings.ui.show_document_upload_button,
     },
     "sanitize_answer": app_settings.base_settings.sanitize_answer,
     "oyd_enabled": app_settings.base_settings.datasource_type,
@@ -173,8 +185,42 @@ async def init_openai_client():
         azure_openai_client = None
         raise e
 
+async def search_cosmos_documents(openAIclient: AsyncAzureOpenAI, container_name: str, text: str):
+    
+    try:
+        embeddings = await create_embedding(openAIclient, text)
+        cosmos_endpoint = (
+            f"https://{app_settings.chat_history.account}.documents.azure.com:443/"
+        )
 
-async def init_cosmosdb_client():
+        if not app_settings.chat_history.account_key:
+            async with DefaultAzureCredential() as cred:
+                credential = cred
+                
+        else:
+            credential = app_settings.chat_history.account_key
+
+
+
+        documents = await current_app.cosmos_document_client.get_documents("documents", embeddings)
+        return documents
+
+    except Exception as e:
+        logging.exception("Exception in CosmosDB initialization", e)
+        cosmos_conversation_client = None
+        raise e
+    
+async def create_embedding(client: AsyncAzureOpenAI, text: str):
+    response = await client.embeddings.create(
+        input=[text],
+        model=app_settings.azure_openai.embedding_name
+    )
+
+    embedding = response.model_dump()['data'][0]['embedding']
+    return embedding
+
+   
+async def init_cosmosdb_client(database_name: str, container_name: str):
     cosmos_conversation_client = None
     if app_settings.chat_history:
         try:
@@ -192,8 +238,8 @@ async def init_cosmosdb_client():
             cosmos_conversation_client = CosmosConversationClient(
                 cosmosdb_endpoint=cosmos_endpoint,
                 credential=credential,
-                database_name=app_settings.chat_history.database,
-                container_name=app_settings.chat_history.conversations_container,
+                database_name=database_name,
+                container_name=container_name,
                 enable_message_feedback=app_settings.chat_history.enable_feedback,
             )
         except Exception as e:
@@ -206,7 +252,7 @@ async def init_cosmosdb_client():
     return cosmos_conversation_client
 
 
-def prepare_model_args(request_body, request_headers):
+def prepare_model_args(request_body, request_headers, documents):
     request_messages = request_body.get("messages", [])
     messages = []
     if not app_settings.datasource:
@@ -217,6 +263,14 @@ def prepare_model_args(request_body, request_headers):
             }
         ]
 
+    for document in documents:
+        messages.append(
+            {
+                "role": "assistant",
+                "content": document['text']
+            }
+        )
+    
     for message in request_messages:
         if message:
             if message["role"] == "assistant" and "context" in message:
@@ -343,10 +397,15 @@ async def send_chat_request(request_body, request_headers):
             filtered_messages.append(message)
             
     request_body['messages'] = filtered_messages
-    model_args = prepare_model_args(request_body, request_headers)
 
     try:
         azure_openai_client = await init_openai_client()
+        azure_openai_client.embeddings
+
+        last_user_message = [message for message in messages if message["role"] == "user"][-1]
+        documents = await search_cosmos_documents(azure_openai_client, "documents" , last_user_message['content'])
+        model_args = prepare_model_args(request_body, request_headers, documents)
+
         raw_response = await azure_openai_client.chat.completions.with_raw_response.create(**model_args)
         response = raw_response.parse()
         apim_request_id = raw_response.headers.get("apim-request-id") 
@@ -858,6 +917,59 @@ async def ensure_cosmos():
         else:
             return jsonify({"error": "CosmosDB is not working"}), 500
 
+@bp.route('/upload', methods=['POST'])
+async def upload_file():
+    data = await request.files
+
+    if 'file' not in data:
+        return jsonify({'error': 'No file part'}), 400
+    
+    file = data['file']
+
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'})
+    
+    if file:
+        authenticated_user = get_authenticated_user_details(request_headers=request.headers)
+        user_principal_id = authenticated_user["user_principal_id"]
+        user_name = authenticated_user["user_name"]
+        connect_str = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+        container_name = os.getenv('AZURE_STORAGE_CONTAINER_NAME')
+        blob_service_client = BlobServiceClient.from_connection_string(connect_str)
+        container_client = blob_service_client.get_container_client(container_name)
+
+        metadata = {
+            'author': user_name,
+            'user_principal_id': user_principal_id
+        }
+
+        try:
+            blob_client = container_client.get_blob_client(file.filename)
+            blob_client.upload_blob(file, metadata=metadata, overwrite=True)
+            return jsonify({'message': 'File uploaded successfully', 'isUploaded': True}), 200
+        except Exception as e:
+            return jsonify({'message': str(e), 'isUploaded': False}), 500
+
+@bp.route("/documents/list", methods=["GET"])
+async def list_uploaded_documents():
+    await cosmos_db_ready.wait()
+    offset = request.args.get("offset", 0)
+    authenticated_user = get_authenticated_user_details(request_headers=request.headers)
+    user_id = authenticated_user["user_principal_id"]
+
+    ## make sure cosmos is configured
+    if not current_app.cosmos_conversation_client:
+        raise Exception("CosmosDB is not configured or not working")
+
+    ## get the documents from cosmos
+    documents = await current_app.cosmos_document_client.get_uploaded_documents(
+        user_id, offset=offset, limit=25
+    )
+    if not isinstance(documents, list):
+        return jsonify({"error": f"No documents are uploaded for {user_id}"}), 404
+
+    ## return the documents
+    return jsonify(documents), 200
 
 async def generate_title(conversation_messages) -> str:
     ## make sure the messages are sorted by _ts descending
@@ -880,6 +992,5 @@ async def generate_title(conversation_messages) -> str:
     except Exception as e:
         logging.exception("Exception while generating title", e)
         return messages[-2]["content"]
-
 
 app = create_app()

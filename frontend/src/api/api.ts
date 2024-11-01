@@ -1,6 +1,11 @@
 import { chatHistorySampleData } from '../constants/chatHistory'
 
-import { ChatMessage, Conversation, ConversationRequest, CosmosDBHealth, CosmosDBStatus, UserInfo } from './models'
+import { ChatMessage, Conversation, ConversationRequest, CosmosDBHealth, CosmosDBStatus, UploadedDocument, UserInfo } from './models'
+
+interface UploadResponse {
+  message: string;
+  isUploaded: boolean;
+}
 
 export async function conversationApi(options: ConversationRequest, abortSignal: AbortSignal): Promise<Response> {
   const response = await fetch('/conversation', {
@@ -33,6 +38,21 @@ export const fetchChatHistoryInit = (): Conversation[] | null => {
   // Make initial API call here
 
   return chatHistorySampleData
+}
+
+export const uploadedDocumentList = async (offset = 0): Promise<UploadedDocument[] | null> => {
+  const response = await fetch(`/documents/list?offset=${offset}`, {
+    method: 'GET'
+  }).then(response => response.json())
+    .then((data: UploadedDocument[]) => {
+      console.log('data: ', data)
+      return data;
+    }).catch(_err => {
+      console.error('There was an issue fetching your data.')
+      return null
+    });
+
+    return response
 }
 
 export const historyList = async (offset = 0): Promise<Conversation[] | null> => {
@@ -352,3 +372,26 @@ export const historyMessageFeedback = async (messageId: string, feedback: string
     })
   return response
 }
+
+export const uploadFile = async (file: File): Promise<UploadResponse> => {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await fetch('/upload', {
+    method: 'POST',
+    body: formData
+  })
+    .then(res => {
+      return res
+    })
+    .catch(_err => {
+      console.error('There was an issue uploading your file.')
+      const errRes: Response = {
+        ...new Response(),
+        ok: false,
+        status: 500
+      }
+      return errRes
+    })
+  return response.json()
+} 

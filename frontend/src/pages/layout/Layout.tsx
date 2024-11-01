@@ -5,7 +5,7 @@ import { CopyRegular } from '@fluentui/react-icons'
 
 import { CosmosDBStatus } from '../../api'
 import Contoso from '../../assets/Contoso.svg'
-import { HistoryButton, ShareButton } from '../../components/common/Button'
+import { HeaderButton, ShareButton } from '../../components/common/Button'
 import { AppStateContext } from '../../state/AppProvider'
 
 import styles from './Layout.module.css'
@@ -17,6 +17,8 @@ const Layout = () => {
   const [shareLabel, setShareLabel] = useState<string | undefined>('Share')
   const [hideHistoryLabel, setHideHistoryLabel] = useState<string>('Hide chat history')
   const [showHistoryLabel, setShowHistoryLabel] = useState<string>('Show chat history')
+  const [hideUploadedDocumentsLabel, setHideUploadedDocumentsLabel] = useState<string>('Hide uploaded documents')
+  const [showUploadedDocumentsLabel, setShowUploadedDocumentsLabel] = useState<string>('Show uploaded documents')
   const [logo, setLogo] = useState('')
   const appStateContext = useContext(AppStateContext)
   const ui = appStateContext?.state.frontendSettings?.ui
@@ -38,6 +40,10 @@ const Layout = () => {
 
   const handleHistoryClick = () => {
     appStateContext?.dispatch({ type: 'TOGGLE_CHAT_HISTORY' })
+  }
+
+  const handleDocumentUploadClick = () => {
+    appStateContext?.dispatch({ type: 'TOGGLE_DOCUMENT_LIST' })
   }
 
   useEffect(() => {
@@ -73,6 +79,25 @@ const Layout = () => {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 480) {
+        setShareLabel(undefined)
+        setHideUploadedDocumentsLabel('Show uploaded documents')
+        setShowUploadedDocumentsLabel('Show uploaded documents')
+      } else {
+        setShareLabel('Share')
+        setHideUploadedDocumentsLabel('Hide uploaded documents')
+        setShowUploadedDocumentsLabel('Show uploaded documents')
+      }
+    }
+
+    window.addEventListener('resize', handleResize)
+    handleResize()
+
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   return (
     <div className={styles.layout}>
       <header className={styles.header} role={'banner'}>
@@ -84,8 +109,16 @@ const Layout = () => {
             </Link>
           </Stack>
           <Stack horizontal tokens={{ childrenGap: 4 }} className={styles.shareButtonContainer}>
+            {appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured && ui?.show_document_upload_button !== false && (
+            <HeaderButton
+                iconName="BulkUpload"
+                onClick={handleDocumentUploadClick}
+                text={appStateContext?.state?.isUploadedDocumentsOpen ? hideUploadedDocumentsLabel : showUploadedDocumentsLabel}
+              />
+            )}
             {appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured && ui?.show_chat_history_button !== false && (
-              <HistoryButton
+              <HeaderButton
+                iconName="History"
                 onClick={handleHistoryClick}
                 text={appStateContext?.state?.isChatHistoryOpen ? hideHistoryLabel : showHistoryLabel}
               />

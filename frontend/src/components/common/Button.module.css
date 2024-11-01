@@ -22,16 +22,16 @@
   color: #ffffff !important;
 }
 
-.historyButtonRoot {
+.headerButtonRoot {
   width: 180px;
   border: 1px solid #d1d1d1;
 }
 
-.historyButtonRoot:hover {
+.headerButtonRoot:hover {
   border: 1px solid #d1d1d1;
 }
 
-.historyButtonRoot:active {
+.headerButtonRoot:active {
   border: 1px solid #d1d1d1;
 }
 
@@ -41,7 +41,7 @@
     padding: 5px 8px;
   }
 
-  .historyButtonRoot {
+  .headerButtonRoot {
     width: auto;
     padding: 0 8px;
   }

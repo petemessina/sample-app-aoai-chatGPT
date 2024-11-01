@@ -66,7 +66,7 @@
 .fileInputContainer {
   position: absolute;
   right: 24px;
-  top: 20px;
+  top: 15px;
 }
 
 .fileInput {
@@ -89,6 +89,10 @@
 .fileIcon {
   font-size: 20px;
   color: #424242;
+}
+
+.fileIcon:last-child {
+  margin-top: 5px;
 }
 
 .uploadedImage {

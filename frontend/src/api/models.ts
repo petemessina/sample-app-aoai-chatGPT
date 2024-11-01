@@ -61,6 +61,10 @@ export type Conversation = {
   date: string
 }
 
+export type UploadedDocument = {
+  id: String
+}
+
 export enum ChatCompletionType {
   ChatCompletion = 'chat.completion',
   ChatCompletionChunk = 'chat.completion.chunk'
@@ -131,6 +135,7 @@ export type UI = {
   chat_logo?: string
   show_share_button?: boolean
   show_chat_history_button?: boolean
+  show_document_upload_button?: boolean
 }
 
 export type FrontendSettings = {

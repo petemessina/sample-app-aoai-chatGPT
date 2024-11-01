@@ -181,3 +181,24 @@ class CosmosConversationClient():
 
         return messages
 
+    async def get_documents(self, user_id: str, embeddings: list[float]):
+        documents = []
+        
+        async for item in self.container_client.query_items(
+                query="SELECT TOP 10 c.text, VectorDistance(c.contentVector, @embedding) AS SimilarityScore FROM c ORDER BY VectorDistance(c.contentVector, @embedding)",
+                parameters=[{"name": "@embedding", "value": embeddings}]
+            ):
+            documents.append(item)
+
+        return documents
+
+    async def get_uploaded_documents(self, user_id, limit, sort_order = 'DESC', offset = 0):
+        query = f"SELECT c.id FROM c "
+        if limit is not None:
+            query += f" offset {offset} limit {limit}" 
+        
+        documents = []
+        async for item in self.container_client.query_items(query=query):
+            documents.append(item)
+        
+        return documents
