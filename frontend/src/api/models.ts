@@ -89,7 +89,8 @@ export type ChatResponse = {
 }
 
 export type ConversationRequest = {
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  ragDocumentIds: string[]
 }
 
 export type UserInfo = {
@@ -116,6 +117,13 @@ export type CosmosDBHealth = {
 }
 
 export enum ChatHistoryLoadingState {
+  Loading = 'loading',
+  Success = 'success',
+  Fail = 'fail',
+  NotStarted = 'notStarted'
+}
+
+export enum UploadedDocumentLoadingState {
   Loading = 'loading',
   Success = 'success',
   Fail = 'fail',

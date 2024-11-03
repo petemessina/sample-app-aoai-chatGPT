@@ -1,4 +1,5 @@
 import uuid
+from typing import List
 from datetime import datetime
 from azure.cosmos.aio import CosmosClient
 from azure.cosmos import exceptions
@@ -181,11 +182,12 @@ class CosmosConversationClient():
 
         return messages
 
-    async def get_documents(self, user_id: str, embeddings: list[float]):
+    async def get_documents(self, user_id: str, ragDocumentIds: list[str], embeddings: list[float]):
         documents = []
-        
+        query=f"""SELECT TOP 10 c.text, VectorDistance(c.contentVector, @embedding) AS SimilarityScore FROM c WHERE c.id IN ({', '.join(f"'{val}'" for val in ragDocumentIds)}) ORDER BY VectorDistance(c.contentVector, @embedding)"""
+
         async for item in self.container_client.query_items(
-                query="SELECT TOP 10 c.text, VectorDistance(c.contentVector, @embedding) AS SimilarityScore FROM c ORDER BY VectorDistance(c.contentVector, @embedding)",
+                query=query,
                 parameters=[{"name": "@embedding", "value": embeddings}]
             ):
             documents.append(item)

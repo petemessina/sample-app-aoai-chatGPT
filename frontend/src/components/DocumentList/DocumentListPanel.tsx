@@ -14,15 +14,18 @@ import {
   SpinnerSize,
   Stack,
   StackItem,
-  Text
+  Text,
+  Checkbox
 } from '@fluentui/react'
 import { useBoolean } from '@fluentui/react-hooks'
 
-import { ChatHistoryLoadingState, historyDeleteAll, uploadedDocumentList } from '../../api'
+import { historyDeleteAll, uploadedDocumentList, UploadedDocumentLoadingState } from '../../api'
 import { AppStateContext } from '../../state/AppProvider'
 import styles from './DocumentListPanel.module.css'
 
-interface Props {}
+interface Props {
+  handleSelectedUploadDocument: (id: string, checked:boolean) => void
+}
 
 export enum DocumentListPanelTabs {
     Documents = 'Documents'
@@ -37,7 +40,7 @@ const commandBarStyle: ICommandBarStyles = {
   }
 }
 
-export const DocumentListPanel: React.FC<Props> = () => {
+export const DocumentListPanel: React.FC<Props> = ({handleSelectedUploadDocument}) => {
   const appStateContext = useContext(AppStateContext)
   const [showContextualMenu, setShowContextualMenu] = React.useState(false)
   const [hideClearAllDialog, { toggle: toggleClearAllDialog }] = useBoolean(true)
@@ -50,10 +53,10 @@ export const DocumentListPanel: React.FC<Props> = () => {
 
   const clearAllDialogContentProps = {
     type: DialogType.close,
-    title: !clearingError ? 'Are you sure you want to clear all chat history?' : 'Error deleting all of chat history',
+    title: !clearingError ? 'Are you sure you want to clear all uploaded documents?' : 'Error deleting all uploaded documents',
     closeButtonAriaLabel: 'Close',
     subText: !clearingError
-      ? 'All chat history will be permanently removed.'
+      ? 'All uploaded documents will be permanently removed.'
       : 'Please try again. If the problem persists, please contact the site administrator.'
   }
 
@@ -65,7 +68,7 @@ export const DocumentListPanel: React.FC<Props> = () => {
   }
 
   const menuItems: IContextualMenuItem[] = [
-    { key: 'clearAll', text: 'Clear all chat history', iconProps: { iconName: 'Delete' } }
+    { key: 'clearAll', text: 'Clear all uploaded documents', iconProps: { iconName: 'Delete' } }
   ]
 
   const handleDocumentUploadClick = () => {
@@ -110,7 +113,7 @@ export const DocumentListPanel: React.FC<Props> = () => {
 
   const handleFetchUploadedDocuments = async () => {
     await uploadedDocumentList(offset).then(response => {
-      console.log(response)
+      console.log(appStateContext?.state.uploadedDocuments)
       return response
     })
   }
@@ -131,11 +134,11 @@ export const DocumentListPanel: React.FC<Props> = () => {
   }, [observerTarget])
 
   const commandBarButtonStyle: Partial<IStackStyles> = { root: { height: '50px' } }
-  React.useEffect(() => {}, [appStateContext?.state.chatHistory, clearingError])
+  React.useEffect(() => {}, [appStateContext?.state.uploadedDocuments, clearingError])
   
   return (
-    <section className={styles.container} data-is-scrollable aria-label={'chat history panel'}>
-      <Stack horizontal horizontalAlign="space-between" verticalAlign="center" wrap aria-label="chat history header">
+    <section className={styles.container} data-is-scrollable aria-label={'document upload panel'}>
+      <Stack horizontal horizontalAlign="space-between" verticalAlign="center" wrap aria-label="document upload header">
         <StackItem>
           <Text
             role="heading"
@@ -154,9 +157,9 @@ export const DocumentListPanel: React.FC<Props> = () => {
           <Stack horizontal styles={commandBarButtonStyle}>
             <CommandBarButton
               iconProps={{ iconName: 'More' }}
-              title={'Clear all chat history'}
+              title={'Clear all documents'}
               onClick={onShowContextualMenu}
-              aria-label={'clear all chat history'}
+              aria-label={'clear all documents'}
               styles={commandBarStyle}
               role="button"
               id="moreButton"
@@ -180,7 +183,7 @@ export const DocumentListPanel: React.FC<Props> = () => {
         </Stack>
       </Stack>
       <Stack
-        aria-label="chat history panel content"
+        aria-label="uploaded documents panel content"
         styles={{
           root: {
             display: 'flex',
@@ -198,9 +201,18 @@ export const DocumentListPanel: React.FC<Props> = () => {
           padding: '1px'
         }}>
         <Stack className={styles.chatHistoryListContainer}>
-          {appStateContext?.state.chatHistoryLoadingState === ChatHistoryLoadingState.Success &&
-            appStateContext?.state.isCosmosDBAvailable.cosmosDB && <div>Chat History List</div>}
-          {appStateContext?.state.chatHistoryLoadingState === ChatHistoryLoadingState.Fail &&
+          {appStateContext?.state.uploadedDocumentsLoadingState === UploadedDocumentLoadingState.Success &&
+            appStateContext?.state.isCosmosDBAvailable.cosmosDB && <div>{appStateContext?.state.uploadedDocuments?.map((item) => {
+              return (
+                <Stack horizontal key={item.id.toString()} tokens={{ childrenGap: 10 }}>
+                  <Checkbox
+                    onChange={(e, checked) => handleSelectedUploadDocument(item.id.toString(), checked || false)}
+                  />
+                  <span>{item.id}</span>
+                </Stack>
+              )}
+            )}</div>}
+          {appStateContext?.state.uploadedDocumentsLoadingState === UploadedDocumentLoadingState.Fail &&
             appStateContext?.state.isCosmosDBAvailable && (
               <>
                 <Stack>
@@ -210,19 +222,14 @@ export const DocumentListPanel: React.FC<Props> = () => {
                         {appStateContext?.state.isCosmosDBAvailable?.status && (
                           <span>{appStateContext?.state.isCosmosDBAvailable?.status}</span>
                         )}
-                        {!appStateContext?.state.isCosmosDBAvailable?.status && <span>Error loading chat history</span>}
-                      </Text>
-                    </StackItem>
-                    <StackItem>
-                      <Text style={{ alignSelf: 'center', fontWeight: '400', fontSize: 14 }}>
-                        <span>Chat history can't be saved at this time</span>
+                        {!appStateContext?.state.isCosmosDBAvailable?.status && <span>Error loading uploaded documents</span>}
                       </Text>
                     </StackItem>
                   </Stack>
                 </Stack>
               </>
             )}
-          {appStateContext?.state.chatHistoryLoadingState === ChatHistoryLoadingState.Loading && (
+          {appStateContext?.state.uploadedDocumentsLoadingState === UploadedDocumentLoadingState.Loading && (
             <>
               <Stack>
                 <Stack
@@ -238,7 +245,7 @@ export const DocumentListPanel: React.FC<Props> = () => {
                   </StackItem>
                   <StackItem>
                     <Text style={{ alignSelf: 'center', fontWeight: '400', fontSize: 14 }}>
-                      <span style={{ whiteSpace: 'pre-wrap' }}>Loading chat history</span>
+                      <span style={{ whiteSpace: 'pre-wrap' }}>Loading uploaded documents</span>
                     </Text>
                   </StackItem>
                 </Stack>

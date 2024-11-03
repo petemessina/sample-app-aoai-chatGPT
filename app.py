@@ -185,24 +185,11 @@ async def init_openai_client():
         azure_openai_client = None
         raise e
 
-async def search_cosmos_documents(openAIclient: AsyncAzureOpenAI, container_name: str, text: str):
+async def search_cosmos_documents(openAIclient: AsyncAzureOpenAI, ragDocumentIds: list[str], container_name: str, text: str):
     
     try:
         embeddings = await create_embedding(openAIclient, text)
-        cosmos_endpoint = (
-            f"https://{app_settings.chat_history.account}.documents.azure.com:443/"
-        )
-
-        if not app_settings.chat_history.account_key:
-            async with DefaultAzureCredential() as cred:
-                credential = cred
-                
-        else:
-            credential = app_settings.chat_history.account_key
-
-
-
-        documents = await current_app.cosmos_document_client.get_documents("documents", embeddings)
+        documents = await current_app.cosmos_document_client.get_documents("documents", ragDocumentIds, embeddings)
         return documents
 
     except Exception as e:
@@ -392,6 +379,8 @@ async def promptflow_request(request):
 async def send_chat_request(request_body, request_headers):
     filtered_messages = []
     messages = request_body.get("messages", [])
+    rag_document_ids = request_body.get("ragDocumentIds", [])
+
     for message in messages:
         if message.get("role") != 'tool':
             filtered_messages.append(message)
@@ -400,10 +389,13 @@ async def send_chat_request(request_body, request_headers):
 
     try:
         azure_openai_client = await init_openai_client()
-        azure_openai_client.embeddings
-
-        last_user_message = [message for message in messages if message["role"] == "user"][-1]
-        documents = await search_cosmos_documents(azure_openai_client, "documents" , last_user_message['content'])
+        documents = []
+        
+        if len(rag_document_ids) > 0:
+            azure_openai_client.embeddings
+            last_user_message = [message for message in messages if message["role"] == "user"][-1]
+            documents = await search_cosmos_documents(azure_openai_client, rag_document_ids, "documents", last_user_message['content'])
+        
         model_args = prepare_model_args(request_body, request_headers, documents)
 
         raw_response = await azure_openai_client.chat.completions.with_raw_response.create(**model_args)

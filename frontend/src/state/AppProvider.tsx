@@ -7,6 +7,7 @@ import React, {
 
 import {
   ChatHistoryLoadingState,
+  UploadedDocumentLoadingState,
   Conversation,
   CosmosDBHealth,
   CosmosDBStatus,
@@ -25,8 +26,10 @@ export interface AppState {
   isChatHistoryOpen: boolean
   isUploadedDocumentsOpen: boolean
   chatHistoryLoadingState: ChatHistoryLoadingState
+  uploadedDocumentsLoadingState: UploadedDocumentLoadingState
   isCosmosDBAvailable: CosmosDBHealth
   chatHistory: Conversation[] | null
+  uploadedDocuments: UploadedDocument[] | null
   filteredChatHistory: Conversation[] | null
   currentChat: Conversation | null
   frontendSettings: FrontendSettings | null
@@ -40,6 +43,7 @@ export type Action =
   | { type: 'TOGGLE_DOCUMENT_LIST' }
   | { type: 'SET_COSMOSDB_STATUS'; payload: CosmosDBHealth }
   | { type: 'UPDATE_CHAT_HISTORY_LOADING_STATE'; payload: ChatHistoryLoadingState }
+  | { type: 'UPDATE_UPLOADED_DOCUMENTS_LOADING_STATE'; payload: UploadedDocumentLoadingState }
   | { type: 'UPDATE_CURRENT_CHAT'; payload: Conversation | null }
   | { type: 'UPDATE_FILTERED_CHAT_HISTORY'; payload: Conversation[] | null }
   | { type: 'UPDATE_CHAT_HISTORY'; payload: Conversation }
@@ -48,6 +52,7 @@ export type Action =
   | { type: 'DELETE_CHAT_HISTORY' }
   | { type: 'DELETE_CURRENT_CHAT_MESSAGES'; payload: string }
   | { type: 'FETCH_CHAT_HISTORY'; payload: Conversation[] | null }
+  | { type: 'FETCH_UPLOADED_DOCUMENTS'; payload: UploadedDocument[] | null }
   | { type: 'FETCH_FRONTEND_SETTINGS'; payload: FrontendSettings | null }
   | {
     type: 'SET_FEEDBACK_STATE'
@@ -60,7 +65,9 @@ const initialState: AppState = {
   isChatHistoryOpen: false,
   isUploadedDocumentsOpen: false,
   chatHistoryLoadingState: ChatHistoryLoadingState.Loading,
+  uploadedDocumentsLoadingState: UploadedDocumentLoadingState.Loading,
   chatHistory: null,
+  uploadedDocuments: null,
   filteredChatHistory: null,
   currentChat: null,
   isCosmosDBAvailable: {
@@ -111,8 +118,20 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({ children }) 
 
     const fetchUploadedDocuments = async (offset = 0): Promise<UploadedDocument[] | null> => {
       const result = await uploadedDocumentList(offset).then(response => {
-        console.log(response)
+        if (response) {
+          dispatch({ type: 'FETCH_UPLOADED_DOCUMENTS', payload: response })
+        } else {
+          dispatch({ type: 'FETCH_UPLOADED_DOCUMENTS', payload: null })
+        }
+
+        dispatch({ type: 'UPDATE_UPLOADED_DOCUMENTS_LOADING_STATE', payload: UploadedDocumentLoadingState.Success })
         return response
+      })
+      .catch(_err => {
+        dispatch({ type: 'UPDATE_UPLOADED_DOCUMENTS_LOADING_STATE', payload: UploadedDocumentLoadingState.Fail })
+        dispatch({ type: 'FETCH_UPLOADED_DOCUMENTS', payload: null })
+        console.error('There was an issue fetching your data.')
+        return null
       })
 
       return result
@@ -120,10 +139,10 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({ children }) 
 
     const getHistoryEnsure = async () => {
       dispatch({ type: 'UPDATE_CHAT_HISTORY_LOADING_STATE', payload: ChatHistoryLoadingState.Loading })
+
       historyEnsure()
         .then(response => {
           if (response?.cosmosDB) {
-            fetchUploadedDocuments()
             fetchChatHistory()
               .then(res => {
                 if (res) {
@@ -155,7 +174,10 @@ export const AppStateProvider: React.FC<AppStateProviderProps> = ({ children }) 
         })
     }
     getHistoryEnsure()
+    fetchUploadedDocuments()
   }, [])
+
+  
 
   useEffect(() => {
     const getFrontendSettings = async () => {

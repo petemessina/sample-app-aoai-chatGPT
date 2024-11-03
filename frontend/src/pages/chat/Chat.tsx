@@ -221,7 +221,8 @@ const Chat = () => {
     setMessages(conversation.messages)
 
     const request: ConversationRequest = {
-      messages: [...conversation.messages.filter(answer => answer.role !== ERROR)]
+      messages: [...conversation.messages.filter(answer => answer.role !== ERROR)],
+      ragDocumentIds: selectedUploadedDocuments || []
     }
 
     let result = {} as ChatResponse
@@ -335,12 +336,14 @@ const Chat = () => {
       } else {
         conversation.messages.push(userMessage)
         request = {
-          messages: [...conversation.messages.filter(answer => answer.role !== ERROR)]
+          messages: [...conversation.messages.filter(answer => answer.role !== ERROR)],
+          ragDocumentIds: selectedUploadedDocuments || []
         }
       }
     } else {
       request = {
-        messages: [userMessage].filter(answer => answer.role !== ERROR)
+        messages: [userMessage].filter(answer => answer.role !== ERROR),
+        ragDocumentIds: selectedUploadedDocuments || []
       }
       setMessages(request.messages)
     }
@@ -758,6 +761,13 @@ const Chat = () => {
     )
   }
 
+  const [selectedUploadedDocuments, setSelectedUploadedDocuments] = useState<string[]>([]);
+  const handleSelectedUploadDocument = (itemId: string, isChecked: boolean) => {
+    setSelectedUploadedDocuments(prev =>
+      isChecked ? [...prev, itemId] : prev.filter(id => id !== itemId)
+    );
+  };
+
   return (
     <div className={styles.container} role="main">
       {showAuthMessage ? (
@@ -1036,7 +1046,7 @@ const Chat = () => {
           {appStateContext?.state.isChatHistoryOpen &&
             appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured && <ChatHistoryPanel />}
           {appStateContext?.state.isUploadedDocumentsOpen &&
-            appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured && <DocumentListPanel />}
+            appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured && <DocumentListPanel handleSelectedUploadDocument={handleSelectedUploadDocument} />}
         </Stack>
       )}
     </div>
