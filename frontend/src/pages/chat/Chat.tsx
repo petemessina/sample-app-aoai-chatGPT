@@ -62,6 +62,7 @@ const Chat = () => {
   const [execResults, setExecResults] = useState<ExecResults[]>([])
   const [processMessages, setProcessMessages] = useState<messageStatus>(messageStatus.NotRunning)
   const [clearingChat, setClearingChat] = useState<boolean>(false)
+  const [selectedUploadedDocuments, setSelectedUploadedDocuments] = useState<string[]>([]);
   const [hideErrorDialog, { toggle: toggleErrorDialog }] = useBoolean(true)
   const [errorMsg, setErrorMsg] = useState<ErrorMessage | null>()
   const [logo, setLogo] = useState('')
@@ -761,7 +762,6 @@ const Chat = () => {
     )
   }
 
-  const [selectedUploadedDocuments, setSelectedUploadedDocuments] = useState<string[]>([]);
   const handleSelectedUploadDocument = (itemId: string, isChecked: boolean) => {
     setSelectedUploadedDocuments(prev =>
       isChecked ? [...prev, itemId] : prev.filter(id => id !== itemId)

@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useRef, useState } from 'react'
+import { useBoolean } from '@fluentui/react-hooks'
 import {
   CommandBarButton,
   ContextualMenu,
@@ -17,8 +18,8 @@ import {
   Text,
   Checkbox
 } from '@fluentui/react'
-import { useBoolean } from '@fluentui/react-hooks'
 
+import { DocumentListItem } from './DocumentListItem'
 import { historyDeleteAll, uploadedDocumentList, UploadedDocumentLoadingState } from '../../api'
 import { AppStateContext } from '../../state/AppProvider'
 import styles from './DocumentListPanel.module.css'
@@ -48,6 +49,7 @@ export const DocumentListPanel: React.FC<Props> = ({handleSelectedUploadDocument
   const [clearingError, setClearingError] = React.useState(false)
   const [offset, setOffset] = useState<number>(25)
   const [observerCounter, setObserverCounter] = useState(0)
+  const [selectedUploadedDocuments, setSelectedUploadedDocuments] = useState<string[]>([]);
   const observerTarget = useRef(null)
   const firstRender = useRef(true)
 
@@ -136,6 +138,14 @@ export const DocumentListPanel: React.FC<Props> = ({handleSelectedUploadDocument
   const commandBarButtonStyle: Partial<IStackStyles> = { root: { height: '50px' } }
   React.useEffect(() => {}, [appStateContext?.state.uploadedDocuments, clearingError])
   
+  const onSelectUploadDocument = (itemId: string, isChecked: boolean) => {
+    setSelectedUploadedDocuments(prev =>
+      isChecked ? [...prev, itemId] : prev.filter(id => id !== itemId)
+    );
+
+    handleSelectedUploadDocument(itemId, isChecked);
+  };
+
   return (
     <section className={styles.container} data-is-scrollable aria-label={'document upload panel'}>
       <Stack horizontal horizontalAlign="space-between" verticalAlign="center" wrap aria-label="document upload header">
@@ -204,12 +214,7 @@ export const DocumentListPanel: React.FC<Props> = ({handleSelectedUploadDocument
           {appStateContext?.state.uploadedDocumentsLoadingState === UploadedDocumentLoadingState.Success &&
             appStateContext?.state.isCosmosDBAvailable.cosmosDB && <div>{appStateContext?.state.uploadedDocuments?.map((item) => {
               return (
-                <Stack horizontal key={item.id.toString()} tokens={{ childrenGap: 10 }}>
-                  <Checkbox
-                    onChange={(e, checked) => handleSelectedUploadDocument(item.id.toString(), checked || false)}
-                  />
-                  <span>{item.id}</span>
-                </Stack>
+                <DocumentListItem item={item} isSelected={selectedUploadedDocuments.includes(item.id.toString())} onSelect={onSelectUploadDocument} />
               )}
             )}</div>}
           {appStateContext?.state.uploadedDocumentsLoadingState === UploadedDocumentLoadingState.Fail &&
