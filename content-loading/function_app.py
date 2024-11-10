@@ -7,12 +7,12 @@ from llama_index.vector_stores.azurecosmosnosql import AzureCosmosDBNoSqlVectorS
 from azure.cosmos import CosmosClient, PartitionKey
 from azure.identity import DefaultAzureCredential
 
+from TestAzureCosmosDBNoSqlVectorSearch import TestAzureCosmosDBNoSqlSearch
 from llama_index_service import LlamaIndexService
 
 app = func.FunctionApp()
 
-@app.blob_trigger(arg_name="indexBlob", path="documents",
-                               connection="stdocumentupload001_STORAGE") 
+@app.blob_trigger(arg_name="indexBlob", path="documents", connection="stdocumentupload001_STORAGE")
 def blob_trigger(indexBlob: func.InputStream):
     logging.info(f"Indexing blob: {indexBlob.name}")
     
@@ -65,7 +65,7 @@ def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
         ]
     }
 
-    return AzureCosmosDBNoSqlVectorSearch(
+    return TestAzureCosmosDBNoSqlSearch(
         cosmos_client=client,
         database_name=database_name,
         container_name=container_name,

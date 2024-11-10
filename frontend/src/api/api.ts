@@ -397,4 +397,29 @@ export const uploadFile = async (file: File): Promise<UploadResponse> => {
       return errRes
     })
   return response.json()
-} 
+}
+
+export const documentDelete = async (documentId: string): Promise<Response> => {
+  const response = await fetch('/document/delete', {
+    method: 'DELETE',
+    body: JSON.stringify({
+      document_id: documentId
+    }),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+    .then(res => {
+      return res
+    })
+    .catch(_err => {
+      console.error('There was an issue fetching your data.')
+      const errRes: Response = {
+        ...new Response(),
+        ok: false,
+        status: 500
+      }
+      return errRes
+    })
+  return response
+}

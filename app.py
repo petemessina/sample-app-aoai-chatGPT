@@ -251,10 +251,15 @@ def prepare_model_args(request_body, request_headers, documents):
         ]
 
     for document in documents:
+        documentText = next((item['Value'] for item in document['payload'] if item['Key'] == 'text'), None)
+
+        if documentText is None:
+            documentText = document['text']
+
         messages.append(
             {
                 "role": "assistant",
-                "content": document['text']
+                "content": documentText
             }
         )
     
@@ -941,6 +946,33 @@ async def upload_file():
             return jsonify({'message': 'File uploaded successfully', 'isUploaded': True}), 200
         except Exception as e:
             return jsonify({'message': str(e), 'isUploaded': False}), 500
+
+@bp.route('/document/delete', methods=["DELETE"])
+async def delete_document():
+    await cosmos_db_ready.wait()
+    offset = request.args.get("offset", 0)
+    authenticated_user = get_authenticated_user_details(request_headers=request.headers)
+    request_json = await request.get_json()
+
+    user_id = authenticated_user["user_principal_id"]
+    document_id = request_json.get("document_id", None)
+
+    if not document_id:
+        return jsonify({"error": "document_id is required"}), 400
+    
+    ## make sure cosmos is configured
+    if not current_app.cosmos_conversation_client:
+        raise Exception("CosmosDB is not configured or not working")
+
+    ## get the documents from cosmos
+    documents = await current_app.cosmos_document_client.delete_document(
+        user_id, document_id
+    )
+    if not isinstance(documents, list):
+        return jsonify({"error": f"No documents was deleted"}), 404
+
+    ## return the documents
+    return jsonify(documents), 200
 
 @bp.route("/documents/list", methods=["GET"])
 async def list_uploaded_documents():

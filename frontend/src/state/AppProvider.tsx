@@ -49,6 +49,7 @@ export type Action =
   | { type: 'UPDATE_CHAT_HISTORY'; payload: Conversation }
   | { type: 'UPDATE_CHAT_TITLE'; payload: Conversation }
   | { type: 'DELETE_CHAT_ENTRY'; payload: string }
+  | { type: 'DELETE_UPLOADED_DOCUMENT'; payload: string }
   | { type: 'DELETE_CHAT_HISTORY' }
   | { type: 'DELETE_CURRENT_CHAT_MESSAGES'; payload: string }
   | { type: 'FETCH_CHAT_HISTORY'; payload: Conversation[] | null }

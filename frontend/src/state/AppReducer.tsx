@@ -48,6 +48,14 @@ export const appStateReducer = (state: AppState, action: Action): AppState => {
       state.currentChat = null
       //TODO: make api call to delete conversation from DB
       return { ...state, chatHistory: filteredChat }
+    case 'DELETE_UPLOADED_DOCUMENT':
+        if (!state.uploadedDocuments) {
+          return { ...state, uploadedDocuments: [] }
+        }
+        const filteredUploadedDocuments = state.uploadedDocuments.filter(document => document.id !== action.payload)
+        state.currentChat = null
+        //TODO: make api call to delete conversation from DB
+        return { ...state, uploadedDocuments: filteredUploadedDocuments }
     case 'DELETE_CHAT_HISTORY':
       //TODO: make api call to delete all conversations from DB
       return { ...state, chatHistory: [], filteredChatHistory: [], currentChat: null }
