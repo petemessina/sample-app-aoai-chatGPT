@@ -80,6 +80,19 @@ class _DocumentUploadSettings(BaseSettings):
     documents_container: str
     enable_feedback: bool = False
 
+class _StorageAccountSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="AZURE_STORAGE_",
+        env_file=DOTENV_PATH,
+        extra="ignore",
+        env_ignore_empty=True
+    )
+
+    account_name: str
+    account_key: Optional[str] = None
+    container_name: str
+    enable_feedback: bool = False
+
 class _PromptflowSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="PROMPTFLOW_",
@@ -781,6 +794,7 @@ class _AppSettings(BaseModel):
     # Constructed properties
     chat_history: Optional[_ChatHistorySettings] = None
     document_upload: Optional[_DocumentUploadSettings] = None
+    storage_account: Optional[_StorageAccountSettings] = None
     datasource: Optional[DatasourcePayloadConstructor] = None
     promptflow: Optional[_PromptflowSettings] = None
 
@@ -811,6 +825,16 @@ class _AppSettings(BaseModel):
         
         except ValidationError:
             self.document_upload = None
+        
+        return self
+    
+    @model_validator(mode="after")
+    def set_storage_account_settings(self) -> Self:
+        try:
+            self.storage_account = _StorageAccountSettings()
+        
+        except ValidationError:
+            self.storage_account = None
         
         return self
     
