@@ -74,6 +74,7 @@ def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
         cosmos_container_properties=cosmos_container_properties,
         cosmos_database_properties=cosmos_database_properties,
         create_container=False,
+        metadata_columns=["userId", "conversationId"]
     )
 
 

@@ -32,6 +32,12 @@ class LlamaIndexService:
         Settings.llm = llm
         Settings.embed_model = embed_model
 
+        for document in documents:
+            document.metadata = {
+                "userId": "00000000-0000-0000-0000-000000000000", 
+                "conversationId": "11111111-1111-1111-1111-111111111111"
+            }
+
         index = VectorStoreIndex.from_documents(
             documents, storage_context=storage_context
         )
