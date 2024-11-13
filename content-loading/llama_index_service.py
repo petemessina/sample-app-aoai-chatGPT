@@ -1,0 +1,48 @@
+from llama_index.llms.azure_openai import AzureOpenAI
+from llama_index.core import (StorageContext, VectorStoreIndex)
+from llama_index.core.settings import Settings
+from llama_index.core.vector_stores.types import VectorStore
+from llama_index.readers.azstorage_blob import AzStorageBlobReader
+from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
+from azure.storage.blob import BlobClient
+
+class LlamaIndexService:
+
+    # Index the documents
+    def index_documents(self, 
+        aoai_model_name: str, 
+        aoai_api_key: str, 
+        aoai_endpoint: str, 
+        aoai_api_version: str,
+        vector_store: VectorStore,
+        embed_model: AzureOpenAIEmbedding,
+        blob_loader: AzStorageBlobReader,
+        blob_client: BlobClient
+    ) -> VectorStoreIndex:
+
+        documents = blob_loader.load_data()
+        llm = AzureOpenAI(
+            model=aoai_model_name,
+            deployment_name=aoai_model_name,
+            api_key=aoai_api_key,
+            azure_endpoint=aoai_endpoint,
+            api_version=aoai_api_version,
+        )
+        
+        blob_properties = blob_client.get_blob_properties()
+        metadata = blob_properties.metadata
+        storage_context = StorageContext.from_defaults(vector_store=vector_store)
+        
+        Settings.llm = llm
+        Settings.embed_model = embed_model
+
+        for document in documents:
+            document.metadata["userId"] = metadata["user_principal_id"]
+            document.metadata["conversationId"] = metadata["conversation_id"]
+
+        index = VectorStoreIndex.from_documents(
+            documents, storage_context=storage_context
+        )
+
+        blob_client.delete_blob()
+        return index

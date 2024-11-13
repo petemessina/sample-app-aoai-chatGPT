@@ -61,6 +61,16 @@ export type Conversation = {
   date: string
 }
 
+export type UploadedDocument = {
+  id: string,
+  payload: Array<DocumentPayload>
+}
+
+export type DocumentPayload = {
+  Key: string;
+  Value: string;
+}
+
 export enum ChatCompletionType {
   ChatCompletion = 'chat.completion',
   ChatCompletionChunk = 'chat.completion.chunk'
@@ -85,7 +95,8 @@ export type ChatResponse = {
 }
 
 export type ConversationRequest = {
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  ragDocumentIds: string[]
 }
 
 export type UserInfo = {
@@ -118,6 +129,13 @@ export enum ChatHistoryLoadingState {
   NotStarted = 'notStarted'
 }
 
+export enum UploadedDocumentLoadingState {
+  Loading = 'loading',
+  Success = 'success',
+  Fail = 'fail',
+  NotStarted = 'notStarted'
+}
+
 export type ErrorMessage = {
   title: string
   subtitle: string
@@ -131,6 +149,7 @@ export type UI = {
   chat_logo?: string
   show_share_button?: boolean
   show_chat_history_button?: boolean
+  show_document_upload_button?: boolean
 }
 
 export type FrontendSettings = {

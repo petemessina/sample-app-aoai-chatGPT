@@ -49,6 +49,7 @@ class _UiSettings(BaseSettings):
     favicon: str = "/favicon.ico"
     show_share_button: bool = True
     show_chat_history_button: bool = True
+    show_document_upload_button: bool = True
 
 
 class _ChatHistorySettings(BaseSettings):
@@ -65,6 +66,32 @@ class _ChatHistorySettings(BaseSettings):
     conversations_container: str
     enable_feedback: bool = False
 
+class _DocumentUploadSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="AZURE_COSMOSDB_",
+        env_file=DOTENV_PATH,
+        extra="ignore",
+        env_ignore_empty=True
+    )
+
+    database: str
+    account: str
+    account_key: Optional[str] = None
+    documents_container: str
+    enable_feedback: bool = False
+
+class _StorageAccountSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="AZURE_STORAGE_",
+        env_file=DOTENV_PATH,
+        extra="ignore",
+        env_ignore_empty=True
+    )
+
+    account_name: str
+    account_key: Optional[str] = None
+    container_name: str
+    enable_feedback: bool = False
 
 class _PromptflowSettings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -766,6 +793,8 @@ class _AppSettings(BaseModel):
     
     # Constructed properties
     chat_history: Optional[_ChatHistorySettings] = None
+    document_upload: Optional[_DocumentUploadSettings] = None
+    storage_account: Optional[_StorageAccountSettings] = None
     datasource: Optional[DatasourcePayloadConstructor] = None
     promptflow: Optional[_PromptflowSettings] = None
 
@@ -786,6 +815,26 @@ class _AppSettings(BaseModel):
         
         except ValidationError:
             self.chat_history = None
+        
+        return self
+    
+    @model_validator(mode="after")
+    def set_document_upload_settings(self) -> Self:
+        try:
+            self.document_upload = _DocumentUploadSettings()
+        
+        except ValidationError:
+            self.document_upload = None
+        
+        return self
+    
+    @model_validator(mode="after")
+    def set_storage_account_settings(self) -> Self:
+        try:
+            self.storage_account = _StorageAccountSettings()
+        
+        except ValidationError:
+            self.storage_account = None
         
         return self
     

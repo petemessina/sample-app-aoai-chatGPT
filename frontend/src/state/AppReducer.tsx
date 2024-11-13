@@ -4,11 +4,15 @@ import { Action, AppState } from './AppProvider'
 export const appStateReducer = (state: AppState, action: Action): AppState => {
   switch (action.type) {
     case 'TOGGLE_CHAT_HISTORY':
-      return { ...state, isChatHistoryOpen: !state.isChatHistoryOpen }
+      return { ...state, isChatHistoryOpen: !state.isChatHistoryOpen, isUploadedDocumentsOpen: false }
+    case 'TOGGLE_DOCUMENT_LIST':
+      return { ...state, isUploadedDocumentsOpen: !state.isUploadedDocumentsOpen, isChatHistoryOpen: false }
     case 'UPDATE_CURRENT_CHAT':
       return { ...state, currentChat: action.payload }
     case 'UPDATE_CHAT_HISTORY_LOADING_STATE':
       return { ...state, chatHistoryLoadingState: action.payload }
+    case 'UPDATE_UPLOADED_DOCUMENTS_LOADING_STATE':
+      return { ...state, uploadedDocumentsLoadingState: action.payload }
     case 'UPDATE_CHAT_HISTORY':
       if (!state.chatHistory || !state.currentChat) {
         return state
@@ -44,6 +48,14 @@ export const appStateReducer = (state: AppState, action: Action): AppState => {
       state.currentChat = null
       //TODO: make api call to delete conversation from DB
       return { ...state, chatHistory: filteredChat }
+    case 'DELETE_UPLOADED_DOCUMENT':
+        if (!state.uploadedDocuments) {
+          return { ...state, uploadedDocuments: [] }
+        }
+        const filteredUploadedDocuments = state.uploadedDocuments.filter(document => document.id !== action.payload)
+        state.currentChat = null
+        //TODO: make api call to delete conversation from DB
+        return { ...state, uploadedDocuments: filteredUploadedDocuments }
     case 'DELETE_CHAT_HISTORY':
       //TODO: make api call to delete all conversations from DB
       return { ...state, chatHistory: [], filteredChatHistory: [], currentChat: null }
@@ -62,6 +74,8 @@ export const appStateReducer = (state: AppState, action: Action): AppState => {
       }
     case 'FETCH_CHAT_HISTORY':
       return { ...state, chatHistory: action.payload }
+    case 'FETCH_UPLOADED_DOCUMENTS':
+      return { ...state, uploadedDocuments: action.payload }
     case 'SET_COSMOSDB_STATUS':
       return { ...state, isCosmosDBAvailable: action.payload }
     case 'FETCH_FRONTEND_SETTINGS':

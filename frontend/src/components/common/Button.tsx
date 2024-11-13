@@ -7,6 +7,10 @@ interface ButtonProps extends IButtonProps {
   text: string | undefined
 }
 
+interface HeaderButtonProps extends ButtonProps {
+  iconName: string
+}
+
 export const ShareButton: React.FC<ButtonProps> = ({ onClick, text }) => {
   return (
     <CommandBarButton
@@ -18,12 +22,12 @@ export const ShareButton: React.FC<ButtonProps> = ({ onClick, text }) => {
   )
 }
 
-export const HistoryButton: React.FC<ButtonProps> = ({ onClick, text }) => {
+export const HeaderButton: React.FC<HeaderButtonProps> = ({ iconName, onClick, text }) => {
   return (
     <DefaultButton
-      className={styles.historyButtonRoot}
+      className={styles.headerButtonRoot}
       text={text}
-      iconProps={{ iconName: 'History' }}
+      iconProps={{ iconName: iconName }}
       onClick={onClick}
     />
   )

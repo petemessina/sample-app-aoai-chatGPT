@@ -1,4 +1,5 @@
 import uuid
+from typing import List
 from datetime import datetime
 from azure.cosmos.aio import CosmosClient
 from azure.cosmos import exceptions
@@ -181,3 +182,36 @@ class CosmosConversationClient():
 
         return messages
 
+    async def get_documents(self, user_id: str, ragDocumentIds: list[str], embeddings: list[float]):
+        documents = []
+        query=f"""SELECT TOP 10 c.text, c.payload, VectorDistance(c.contentVector, @embedding) AS SimilarityScore FROM c WHERE c.id IN ({', '.join(f"'{val}'" for val in ragDocumentIds)}) ORDER BY VectorDistance(c.contentVector, @embedding)"""
+
+        async for item in self.container_client.query_items(
+                query=query,
+                parameters=[{"name": "@embedding", "value": embeddings}]
+            ):
+            documents.append(item)
+
+        return documents
+
+    async def get_uploaded_documents(self, user_id, limit, offset = 0):
+        query = f"SELECT DISTINCT c.metadata.file_name, c.payload FROM c WHERE c.userId = @userId"
+        if limit is not None:
+            query += f" offset {offset} limit {limit}" 
+        
+        documents = []
+        async for item in self.container_client.query_items(
+                query=query, 
+                parameters=[{"name": "@userId", "value": user_id}]
+            ):
+            documents.append(item)
+        
+        return documents
+    
+    async def delete_document(self, user_id, document_id):
+        document = await self.container_client.read_item(item=document_id, partition_key=user_id)        
+        if document:
+            resp = await self.container_client.delete_item(item=document_id, partition_key=user_id)
+            return resp
+        else:
+            return True

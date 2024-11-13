@@ -1,6 +1,11 @@
 import { chatHistorySampleData } from '../constants/chatHistory'
 
-import { ChatMessage, Conversation, ConversationRequest, CosmosDBHealth, CosmosDBStatus, UserInfo } from './models'
+import { ChatMessage, Conversation, ConversationRequest, CosmosDBHealth, CosmosDBStatus, UploadedDocument, UserInfo } from './models'
+
+interface UploadResponse {
+  message: string;
+  isUploaded: boolean;
+}
 
 export async function conversationApi(options: ConversationRequest, abortSignal: AbortSignal): Promise<Response> {
   const response = await fetch('/conversation', {
@@ -9,7 +14,8 @@ export async function conversationApi(options: ConversationRequest, abortSignal:
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      messages: options.messages
+      messages: options.messages,
+      ragDocumentIds: options.ragDocumentIds
     }),
     signal: abortSignal
   })
@@ -33,6 +39,20 @@ export const fetchChatHistoryInit = (): Conversation[] | null => {
   // Make initial API call here
 
   return chatHistorySampleData
+}
+
+export const uploadedDocumentList = async (offset = 0): Promise<UploadedDocument[] | null> => {
+  const response = await fetch(`/documents/list?offset=${offset}`, {
+    method: 'GET'
+  }).then(response => response.json())
+    .then((data: UploadedDocument[]) => {
+      return data;
+    }).catch(_err => {
+      console.error('There was an issue fetching your data.')
+      return null
+    });
+
+    return response
 }
 
 export const historyList = async (offset = 0): Promise<Conversation[] | null> => {
@@ -121,11 +141,13 @@ export const historyGenerate = async (
   if (convId) {
     body = JSON.stringify({
       conversation_id: convId,
-      messages: options.messages
+      messages: options.messages,
+      ragDocumentIds: options.ragDocumentIds
     })
   } else {
     body = JSON.stringify({
-      messages: options.messages
+      messages: options.messages,
+      ragDocumentIds: options.ragDocumentIds
     })
   }
   const response = await fetch('/history/generate', {
@@ -343,6 +365,56 @@ export const historyMessageFeedback = async (messageId: string, feedback: string
     })
     .catch(_err => {
       console.error('There was an issue logging feedback.')
+      const errRes: Response = {
+        ...new Response(),
+        ok: false,
+        status: 500
+      }
+      return errRes
+    })
+  return response
+}
+
+export const uploadFile = async (file: File, conversationId?: string): Promise<UploadResponse> => {
+  const formData = new FormData()
+
+  formData.append('file', file)
+  formData.append('conversationId', conversationId || '')
+
+  const response = await fetch('/upload', {
+    method: 'POST',
+    body: formData
+  })
+    .then(res => {
+      return res
+    })
+    .catch(_err => {
+      console.error('There was an issue uploading your file.')
+      const errRes: Response = {
+        ...new Response(),
+        ok: false,
+        status: 500
+      }
+      return errRes
+    })
+  return response.json()
+}
+
+export const documentDelete = async (documentId: string): Promise<Response> => {
+  const response = await fetch('/document/delete', {
+    method: 'DELETE',
+    body: JSON.stringify({
+      document_id: documentId
+    }),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+    .then(res => {
+      return res
+    })
+    .catch(_err => {
+      console.error('There was an issue fetching your data.')
       const errRes: Response = {
         ...new Response(),
         ok: false,
