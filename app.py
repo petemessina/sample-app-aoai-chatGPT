@@ -5,7 +5,7 @@ import logging
 import uuid
 import httpx
 import asyncio
-from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
+from azure.storage.blob.aio import BlobServiceClient, BlobClient, ContainerClient
 from quart import (
     Blueprint,
     Quart,
@@ -22,6 +22,7 @@ from azure.identity.aio import (
     DefaultAzureCredential,
     get_bearer_token_provider
 )
+#from azure.identity import DefaultAzureCredential
 from backend.auth.auth_utils import get_authenticated_user_details
 from backend.security.ms_defender_utils import get_msdefender_user_json
 from backend.history.cosmosdbservice import CosmosConversationClient
@@ -935,9 +936,19 @@ async def upload_file():
         authenticated_user = get_authenticated_user_details(request_headers=request.headers)
         user_principal_id = authenticated_user["user_principal_id"]
         user_name = authenticated_user["user_name"]
-        connect_str = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
-        container_name = os.getenv('AZURE_STORAGE_CONTAINER_NAME')
-        blob_service_client = BlobServiceClient.from_connection_string(connect_str)
+        account_name = app_settings.storage_account.account_name
+        account_key = app_settings.storage_account.account_key
+        container_name = app_settings.storage_account.container_name
+
+        account_url = f"https://{account_name}.blob.core.windows.net"
+        
+        if not account_key:
+            async with DefaultAzureCredential() as cred:
+                credential = cred
+        else:
+            credential = account_key
+
+        blob_service_client = BlobServiceClient(account_url=account_url, credential=credential)
         container_client = blob_service_client.get_container_client(container_name)
 
         metadata = {
@@ -948,7 +959,7 @@ async def upload_file():
 
         try:
             blob_client = container_client.get_blob_client(f"{conversationId}/{file.filename}")
-            blob_client.upload_blob(file, metadata=metadata, overwrite=True)
+            await blob_client.upload_blob(file, metadata=metadata, overwrite=True)
             return jsonify({'message': 'File uploaded successfully', 'isUploaded': True}), 200
         except Exception as e:
             return jsonify({'message': str(e), 'isUploaded': False}), 500
