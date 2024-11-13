@@ -6,25 +6,28 @@ from llama_index.readers.azstorage_blob import AzStorageBlobReader
 from llama_index.vector_stores.azurecosmosnosql import AzureCosmosDBNoSqlVectorSearch
 from azure.cosmos import CosmosClient, PartitionKey
 from azure.identity import DefaultAzureCredential
+from azure.storage.blob import BlobClient
 
 from TestAzureCosmosDBNoSqlVectorSearch import TestAzureCosmosDBNoSqlSearch
 from llama_index_service import LlamaIndexService
 
 app = func.FunctionApp()
 
-@app.blob_trigger(arg_name="indexBlob", path="documents", connection="stdocumentupload001_STORAGE")
+@app.blob_trigger(arg_name="indexBlob", path="documents/{container_name}", connection="stdocumentupload001_STORAGE")
 def blob_trigger(indexBlob: func.InputStream):
     logging.info(f"Indexing blob: {indexBlob.name}")
     
     llama_index_service: LlamaIndexService = LlamaIndexService()
-    blob_name: str = indexBlob.name.split("/")[-1]    
+    blob_name: str = indexBlob.name.split("/")[-1]
+    container_name = ''.join(indexBlob.name.rsplit('/', 1)[:-1])
     aoai_model_name: str = os.environ["OpenAIModelName"]
     aoai_api_key: str = os.environ["OpenAIAPIKey"]
     aoai_endpoint: str = os.environ["OpenAIEndpoint"]
     aoai_api_version: str = os.environ["OpenAIAPIVersion"]
     vector_store = __create_vector_store__()
     embed_model = __create_embedding_model__()
-    blob_loader = __create_blob_loader__(blob_name)
+    blob_loader = __create_blob_loader__(container_name, blob_name)
+    blob_client = __create_blob_client__(container_name, blob_name)
 
     llama_index_service.index_documents(
         aoai_model_name,
@@ -33,7 +36,8 @@ def blob_trigger(indexBlob: func.InputStream):
         aoai_api_version,
         vector_store,
         embed_model,
-        blob_loader
+        blob_loader,
+        blob_client
     )
 
 def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
@@ -79,8 +83,7 @@ def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
 
 
 # Create the Azure Blob Loader
-def __create_blob_loader__(blob_name: str) -> AzStorageBlobReader:
-    container_name: str = os.environ["StorageAccountContainerName"]
+def __create_blob_loader__(container_name: str, blob_name: str) -> AzStorageBlobReader:
     account_url: str = os.environ["StorageAccountUrl"]
     connection_string: str = os.environ["StorageAccountConnectionString"]
     
@@ -91,6 +94,7 @@ def __create_blob_loader__(blob_name: str) -> AzStorageBlobReader:
         blob=blob_name,
         account_url=account_url,
         connection_string=connection_string,
+        include=["metadata"],
     )
 
 # Create the Azure OpenAI Embedding Model
@@ -111,3 +115,15 @@ def __create_embedding_model__() -> AzureOpenAIEmbedding:
     )
     
     return embed_model
+
+# Create Blob Client
+def __create_blob_client__(container_name: str, blob_name: str) -> BlobClient:
+    connection_string: str = os.environ["StorageAccountConnectionString"]
+
+    logging.info(f"Creating Blob Client for container {container_name} and blob {blob_name}.")
+
+    return BlobClient.from_connection_string(
+        conn_str=connection_string,
+        container_name=container_name,
+        blob_name=blob_name
+    )

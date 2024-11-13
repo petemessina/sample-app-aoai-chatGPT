@@ -194,8 +194,8 @@ class CosmosConversationClient():
 
         return documents
 
-    async def get_uploaded_documents(self, user_id, limit, sort_order = 'DESC', offset = 0):
-        query = f"SELECT c.id, c.payload FROM c WHERE c.userId = @userId"
+    async def get_uploaded_documents(self, user_id, limit, offset = 0):
+        query = f"SELECT DISTINCT c.metadata.file_name, c.payload FROM c WHERE c.userId = @userId"
         if limit is not None:
             query += f" offset {offset} limit {limit}" 
         

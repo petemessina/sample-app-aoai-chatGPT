@@ -917,7 +917,12 @@ async def ensure_cosmos():
 @bp.route('/upload', methods=['POST'])
 async def upload_file():
     data = await request.files
+    form = await request.form
+    conversationId = form.get('conversationId')
 
+    if not conversationId:
+        return jsonify({'error': 'conversationId is required'}), 400
+    
     if 'file' not in data:
         return jsonify({'error': 'No file part'}), 400
     
@@ -937,11 +942,12 @@ async def upload_file():
 
         metadata = {
             'author': user_name,
-            'user_principal_id': user_principal_id
+            'user_principal_id': user_principal_id,
+            'conversation_id': conversationId
         }
 
         try:
-            blob_client = container_client.get_blob_client(file.filename)
+            blob_client = container_client.get_blob_client(f"{conversationId}/{file.filename}")
             blob_client.upload_blob(file, metadata=metadata, overwrite=True)
             return jsonify({'message': 'File uploaded successfully', 'isUploaded': True}), 200
         except Exception as e:

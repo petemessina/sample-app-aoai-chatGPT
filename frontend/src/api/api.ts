@@ -46,7 +46,6 @@ export const uploadedDocumentList = async (offset = 0): Promise<UploadedDocument
     method: 'GET'
   }).then(response => response.json())
     .then((data: UploadedDocument[]) => {
-      console.log('data: ', data)
       return data;
     }).catch(_err => {
       console.error('There was an issue fetching your data.')
@@ -376,9 +375,11 @@ export const historyMessageFeedback = async (messageId: string, feedback: string
   return response
 }
 
-export const uploadFile = async (file: File): Promise<UploadResponse> => {
+export const uploadFile = async (file: File, conversationId?: string): Promise<UploadResponse> => {
   const formData = new FormData()
+
   formData.append('file', file)
+  formData.append('conversationId', conversationId || '')
 
   const response = await fetch('/upload', {
     method: 'POST',

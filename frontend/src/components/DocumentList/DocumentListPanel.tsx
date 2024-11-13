@@ -25,7 +25,8 @@ import { AppStateContext } from '../../state/AppProvider'
 import styles from './DocumentListPanel.module.css'
 
 interface Props {
-  handleSelectedUploadDocument: (id: string, checked:boolean) => void
+  conversationId?: string;
+  handleSelectedUploadDocument: (id: string, checked:boolean) => void;
 }
 
 export enum DocumentListPanelTabs {
@@ -41,7 +42,7 @@ const commandBarStyle: ICommandBarStyles = {
   }
 }
 
-export const DocumentListPanel: React.FC<Props> = ({handleSelectedUploadDocument}) => {
+export const DocumentListPanel: React.FC<Props> = ({conversationId, handleSelectedUploadDocument}) => {
   const appStateContext = useContext(AppStateContext)
   const [showContextualMenu, setShowContextualMenu] = React.useState(false)
   const [hideClearAllDialog, { toggle: toggleClearAllDialog }] = useBoolean(true)
@@ -104,7 +105,7 @@ export const DocumentListPanel: React.FC<Props> = ({handleSelectedUploadDocument
   }
 
   useEffect(() => {
-    if (firstRender.current) {
+    if (firstRender.current && conversationId) {
       handleFetchUploadedDocuments()
       firstRender.current = false
       return
@@ -114,10 +115,14 @@ export const DocumentListPanel: React.FC<Props> = ({handleSelectedUploadDocument
   }, [observerCounter])
 
   const handleFetchUploadedDocuments = async () => {
-    await uploadedDocumentList(offset).then(response => {
-      console.log(appStateContext?.state.uploadedDocuments)
-      return response
-    })
+
+    if(conversationId) {
+      await uploadedDocumentList(offset).then(response => {
+        return response
+      })
+    }
+
+    return []
   }
 
   useEffect(() => {

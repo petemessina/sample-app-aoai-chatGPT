@@ -132,6 +132,7 @@ export const QuestionInput = ({ onSend, disabled, placeholder, clearOnSend, conv
 
         <MultiFileUpload
           isModalOpen={isModalOpen}
+          conversationId={conversationId}
           onModalDismiss={() => setIsModalOpen(false)}
          />
       

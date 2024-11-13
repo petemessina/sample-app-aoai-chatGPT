@@ -27,10 +27,11 @@ interface MessageOptions {
 
 interface Props {
   isModalOpen: boolean,
+  conversationId?: string;
   onModalDismiss: (ev?: React.MouseEvent<HTMLButtonElement | HTMLElement>) => any;
 }
 
-export const MultiFileUpload = ({ isModalOpen, onModalDismiss }: Props) => {
+export const MultiFileUpload = ({ isModalOpen, conversationId, onModalDismiss }: Props) => {
   const [uploadedFiles, setUploadedFiles] = useState<Array<FileDetails>>([]);
   const [messageOptions, setMessageOptions] = useState<MessageOptions>({ message: 'All files have been uploaded successfully', messageType: MessageBarType.success, isVisible: false });
   const [uploading, setUploading] = useState<boolean>(false);
@@ -80,7 +81,7 @@ export const MultiFileUpload = ({ isModalOpen, onModalDismiss }: Props) => {
 
       updateFileStatus(fileDetail.file.name, FileUploadStatus.Uploading);
 
-      const uploadResult = await uploadFile(fileDetail.file);
+      const uploadResult = await uploadFile(fileDetail.file, conversationId);
       const updatedStatus = uploadResult.isUploaded ? FileUploadStatus.Uploaded : FileUploadStatus.FailedToUpload;
 
       if(updatedStatus === FileUploadStatus.FailedToUpload) {

@@ -7,6 +7,8 @@ azure-functions
 azure.storage.blob
 azure-search-documents
 azure.identity
+azure-cosmos
+azure-ai-textanalytics
 llama-index
 llama-index-vector-stores-azureaisearch
 llama-index-vector-stores-azurecosmosnosql
@@ -14,4 +16,3 @@ llama-index-embeddings-azure-openai
 llama-index-llms-azure-openai
 llama-index-readers-azstorage_blob
 pyyaml
-azure-cosmos

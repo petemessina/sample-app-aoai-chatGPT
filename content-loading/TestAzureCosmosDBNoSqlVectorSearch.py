@@ -77,6 +77,7 @@ class TestAzureCosmosDBNoSqlSearch(AzureCosmosDBNoSqlVectorSearch):
                 "timeStamp": date.today().isoformat(),
             }
 
+#check for an existing name and do not override it
             for column in self._metadata_columns:
                 entry[column] = metadata.get(column, "")
 

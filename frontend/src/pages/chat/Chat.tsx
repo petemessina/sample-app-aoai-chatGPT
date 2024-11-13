@@ -1046,7 +1046,7 @@ const Chat = () => {
           {appStateContext?.state.isChatHistoryOpen &&
             appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured && <ChatHistoryPanel />}
           {appStateContext?.state.isUploadedDocumentsOpen &&
-            appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured && <DocumentListPanel handleSelectedUploadDocument={handleSelectedUploadDocument} />}
+            appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured && <DocumentListPanel conversationId={appStateContext?.state.currentChat?.id} handleSelectedUploadDocument={handleSelectedUploadDocument} />}
         </Stack>
       )}
     </div>

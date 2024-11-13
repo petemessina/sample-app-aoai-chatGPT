@@ -72,7 +72,7 @@ export const DocumentListItem: React.FC<Props> = ({ item, isSelected, onSelect }
         }}>
             <Stack horizontal verticalAlign={'center'} style={{ width: '100%' }}>
                 <Checkbox checked={isSelected} onChange={(e, checked) => onSelect(item.id, checked || false)} />
-                <span>{item.payload.find(item => item.Key === "file")?.Value}</span>
+                <span>{item.payload?.find(item => item.Key === "file")?.Value}</span>
                 {(isSelected || isHovered) && (
                     <Stack horizontal horizontalAlign="end">
                         <IconButton

@@ -4,6 +4,7 @@ from llama_index.core.settings import Settings
 from llama_index.core.vector_stores.types import VectorStore
 from llama_index.readers.azstorage_blob import AzStorageBlobReader
 from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
+from azure.storage.blob import BlobClient
 
 class LlamaIndexService:
 
@@ -15,7 +16,8 @@ class LlamaIndexService:
         aoai_api_version: str,
         vector_store: VectorStore,
         embed_model: AzureOpenAIEmbedding,
-        blob_loader: AzStorageBlobReader
+        blob_loader: AzStorageBlobReader,
+        blob_client: BlobClient
     ) -> VectorStoreIndex:
 
         documents = blob_loader.load_data()
@@ -27,19 +29,20 @@ class LlamaIndexService:
             api_version=aoai_api_version,
         )
         
+        blob_properties = blob_client.get_blob_properties()
+        metadata = blob_properties.metadata
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
         
         Settings.llm = llm
         Settings.embed_model = embed_model
 
         for document in documents:
-            document.metadata = {
-                "userId": "00000000-0000-0000-0000-000000000000", 
-                "conversationId": "11111111-1111-1111-1111-111111111111"
-            }
+            document.metadata["userId"] = metadata["user_principal_id"]
+            document.metadata["conversationId"] = metadata["conversation_id"]
 
         index = VectorStoreIndex.from_documents(
             documents, storage_context=storage_context
         )
 
+        blob_client.delete_blob()
         return index
