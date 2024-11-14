@@ -2,13 +2,12 @@ import os
 import azure.functions as func
 import logging
 from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
-from llama_index.readers.azstorage_blob import AzStorageBlobReader
 from llama_index.vector_stores.azurecosmosnosql import AzureCosmosDBNoSqlVectorSearch
 from azure.cosmos import CosmosClient, PartitionKey
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobClient
 
-from TestAzureCosmosDBNoSqlVectorSearch import TestAzureCosmosDBNoSqlSearch
+from AzStorageBlobReader import AzStorageBlobReader
 from llama_index_service import LlamaIndexService
 
 app = func.FunctionApp()
@@ -69,7 +68,7 @@ def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
         ]
     }
 
-    return TestAzureCosmosDBNoSqlSearch(
+    return AzureCosmosDBNoSqlVectorSearch(
         cosmos_client=client,
         database_name=database_name,
         container_name=container_name,
@@ -77,8 +76,7 @@ def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
         indexing_policy=indexing_policy,
         cosmos_container_properties=cosmos_container_properties,
         cosmos_database_properties=cosmos_database_properties,
-        create_container=False,
-        metadata_columns=["userId", "conversationId"]
+        create_container=False
     )
 
 
@@ -93,8 +91,7 @@ def __create_blob_loader__(container_name: str, blob_name: str) -> AzStorageBlob
         container_name=container_name,
         blob=blob_name,
         account_url=account_url,
-        connection_string=connection_string,
-        include=["metadata"],
+        connection_string=connection_string
     )
 
 # Create the Azure OpenAI Embedding Model

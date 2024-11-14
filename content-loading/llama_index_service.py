@@ -29,16 +29,9 @@ class LlamaIndexService:
             api_version=aoai_api_version,
         )
         
-        blob_properties = blob_client.get_blob_properties()
-        metadata = blob_properties.metadata
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
-        
         Settings.llm = llm
         Settings.embed_model = embed_model
-
-        for document in documents:
-            document.metadata["userId"] = metadata["user_principal_id"]
-            document.metadata["conversationId"] = metadata["conversation_id"]
 
         index = VectorStoreIndex.from_documents(
             documents, storage_context=storage_context
