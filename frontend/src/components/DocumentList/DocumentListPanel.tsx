@@ -219,7 +219,7 @@ export const DocumentListPanel: React.FC<Props> = ({conversationId, handleSelect
           {appStateContext?.state.uploadedDocumentsLoadingState === UploadedDocumentLoadingState.Success &&
             appStateContext?.state.isCosmosDBAvailable.cosmosDB && <div>{appStateContext?.state.uploadedDocuments?.map((item) => {
               return (
-                <DocumentListItem item={item} isSelected={selectedUploadedDocuments.includes(item.id)} onSelect={onSelectUploadDocument} />
+                <DocumentListItem item={item} isSelected={selectedUploadedDocuments.includes(item.blobId)} onSelect={onSelectUploadDocument} />
               )}
             )}</div>}
           {appStateContext?.state.uploadedDocumentsLoadingState === UploadedDocumentLoadingState.Fail &&

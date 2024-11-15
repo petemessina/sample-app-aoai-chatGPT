@@ -44,9 +44,17 @@ export const fetchChatHistoryInit = (): Conversation[] | null => {
 export const uploadedDocumentList = async (offset = 0): Promise<UploadedDocument[] | null> => {
   const response = await fetch(`/documents/list?offset=${offset}`, {
     method: 'GET'
-  }).then(response => response.json())
-    .then((data: UploadedDocument[]) => {
-      return data;
+  }).then(async response => {
+      const payload = await response.json();
+      const documents: Array<UploadedDocument> = payload.map((doc: any) => {
+        return {
+          blobId: doc.blob_id,
+          fileName: doc.file_name,
+          conversationId: doc.conversation_id
+        };
+      });
+
+      return documents;
     }).catch(_err => {
       console.error('There was an issue fetching your data.')
       return null
@@ -375,6 +383,31 @@ export const historyMessageFeedback = async (messageId: string, feedback: string
   return response
 }
 
+export const generateConversationbPlaceholder = async (conversationTitle: string): Promise<Response> => {
+  const response = await fetch('/history/generate_placeholder', {
+    method: 'POST',
+    body: JSON.stringify({
+      conversation_title: conversationTitle
+    }),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+    .then(res => {
+      return res
+    })
+    .catch(_err => {
+      console.error('There was an issue creating the conversation.')
+      const errRes: Response = {
+        ...new Response(),
+        ok: false,
+        status: 500
+      }
+      return errRes
+    })
+  return response
+}
+
 export const uploadFile = async (file: File, conversationId?: string): Promise<UploadResponse> => {
   const formData = new FormData()
 
@@ -400,11 +433,11 @@ export const uploadFile = async (file: File, conversationId?: string): Promise<U
   return response.json()
 }
 
-export const documentDelete = async (documentId: string): Promise<Response> => {
+export const documentDelete = async (blobId: string): Promise<Response> => {
   const response = await fetch('/document/delete', {
     method: 'DELETE',
     body: JSON.stringify({
-      document_id: documentId
+      blob_id: blobId
     }),
     headers: {
       'Content-Type': 'application/json'
