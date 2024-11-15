@@ -941,7 +941,7 @@ async def upload_file():
         account_key = app_settings.storage_account.account_key
         container_name = app_settings.storage_account.container_name
 
-        account_url = f"http://127.0.0.1:10000/devstoreaccount1"
+        account_url = f"https://{account_name}.blob.core.windows.net"
         
         if not account_key:
             async with DefaultAzureCredential() as cred:
