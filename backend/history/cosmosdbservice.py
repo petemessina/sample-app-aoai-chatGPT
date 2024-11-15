@@ -6,11 +6,12 @@ from azure.cosmos import exceptions
   
 class CosmosConversationClient():
     
-    def __init__(self, cosmosdb_endpoint: str, credential: any, database_name: str, container_name: str, enable_message_feedback: bool = False):
+    def __init__(self, cosmosdb_endpoint: str, credential: any, database_name: str, chat_container_name: str, document_container_name: str, enable_message_feedback: bool = False):
         self.cosmosdb_endpoint = cosmosdb_endpoint
         self.credential = credential
         self.database_name = database_name
-        self.container_name = container_name
+        self.chat_container_name = chat_container_name
+        self.document_container_name = document_container_name
         self.enable_message_feedback = enable_message_feedback
         try:
             self.cosmosdb_client = CosmosClient(self.cosmosdb_endpoint, credential=credential)
@@ -25,14 +26,9 @@ class CosmosConversationClient():
         except exceptions.CosmosResourceNotFoundError:
             raise ValueError("Invalid CosmosDB database name") 
         
-        try:
-            self.container_client = self.database_client.get_container_client(container_name)
-        except exceptions.CosmosResourceNotFoundError:
-            raise ValueError("Invalid CosmosDB container name") 
-        
-
     async def ensure(self):
-        if not self.cosmosdb_client or not self.database_client or not self.container_client:
+        chat_container_client = self.create_chat_container_client()
+        if not self.cosmosdb_client or not self.database_client or not chat_container_client:
             return False, "CosmosDB client not initialized correctly"
         try:
             database_info = await self.database_client.read()
@@ -40,13 +36,14 @@ class CosmosConversationClient():
             return False, f"CosmosDB database {self.database_name} on account {self.cosmosdb_endpoint} not found"
         
         try:
-            container_info = await self.container_client.read()
+            container_info = await chat_container_client.read()
         except:
-            return False, f"CosmosDB container {self.container_name} not found"
+            return False, f"CosmosDB container {self.chat_container_name} not found"
             
         return True, "CosmosDB client initialized successfully"
 
     async def create_conversation(self, user_id, title = ''):
+        chat_container_client = self.create_chat_container_client()
         conversation = {
             'id': str(uuid.uuid4()),  
             'type': 'conversation',
@@ -56,23 +53,27 @@ class CosmosConversationClient():
             'title': title
         }
         ## TODO: add some error handling based on the output of the upsert_item call
-        resp = await self.container_client.upsert_item(conversation)  
+        resp = await chat_container_client.upsert_item(conversation)  
         if resp:
             return resp
         else:
             return False
     
     async def upsert_conversation(self, conversation):
-        resp = await self.container_client.upsert_item(conversation)
+        chat_container_client = self.create_chat_container_client()
+        resp = await chat_container_client.upsert_item(conversation)
         if resp:
             return resp
         else:
             return False
 
     async def delete_conversation(self, user_id, conversation_id):
-        conversation = await self.container_client.read_item(item=conversation_id, partition_key=user_id)        
+        chat_container_client = self.create_chat_container_client()
+        conversation = await chat_container_client.read_item(item=conversation_id, partition_key=user_id)        
         if conversation:
-            resp = await self.container_client.delete_item(item=conversation_id, partition_key=user_id)
+            resp = await chat_container_client.delete_item(item=conversation_id, partition_key=user_id)
+            await self.delete_document_by_conversation_id(user_id, conversation_id)           
+
             return resp
         else:
             return True
@@ -80,16 +81,20 @@ class CosmosConversationClient():
         
     async def delete_messages(self, conversation_id, user_id):
         ## get a list of all the messages in the conversation
+        chat_container_client = self.create_chat_container_client()
         messages = await self.get_messages(user_id, conversation_id)
         response_list = []
         if messages:
             for message in messages:
-                resp = await self.container_client.delete_item(item=message['id'], partition_key=user_id)
+                resp = await chat_container_client.delete_item(item=message['id'], partition_key=user_id)
                 response_list.append(resp)
+
+            await self.delete_document_by_conversation_id(user_id, conversation_id)
             return response_list
 
 
     async def get_conversations(self, user_id, limit, sort_order = 'DESC', offset = 0):
+        chat_container_client = self.create_chat_container_client()
         parameters = [
             {
                 'name': '@userId',
@@ -101,12 +106,13 @@ class CosmosConversationClient():
             query += f" offset {offset} limit {limit}" 
         
         conversations = []
-        async for item in self.container_client.query_items(query=query, parameters=parameters):
+        async for item in chat_container_client.query_items(query=query, parameters=parameters):
             conversations.append(item)
         
         return conversations
 
     async def get_conversation(self, user_id, conversation_id):
+        chat_container_client = self.create_chat_container_client()
         parameters = [
             {
                 'name': '@conversationId',
@@ -119,7 +125,7 @@ class CosmosConversationClient():
         ]
         query = f"SELECT * FROM c where c.id = @conversationId and c.type='conversation' and c.userId = @userId"
         conversations = []
-        async for item in self.container_client.query_items(query=query, parameters=parameters):
+        async for item in chat_container_client.query_items(query=query, parameters=parameters):
             conversations.append(item)
 
         ## if no conversations are found, return None
@@ -129,6 +135,7 @@ class CosmosConversationClient():
             return conversations[0]
  
     async def create_message(self, uuid, conversation_id, user_id, input_message: dict):
+        chat_container_client = self.create_chat_container_client()
         message = {
             'id': uuid,
             'type': 'message',
@@ -143,7 +150,7 @@ class CosmosConversationClient():
         if self.enable_message_feedback:
             message['feedback'] = ''
         
-        resp = await self.container_client.upsert_item(message)  
+        resp = await chat_container_client.upsert_item(message)  
         if resp:
             ## update the parent conversations's updatedAt field with the current message's createdAt datetime value
             conversation = await self.get_conversation(user_id, conversation_id)
@@ -156,15 +163,17 @@ class CosmosConversationClient():
             return False
     
     async def update_message_feedback(self, user_id, message_id, feedback):
-        message = await self.container_client.read_item(item=message_id, partition_key=user_id)
+        chat_container_client = self.create_chat_container_client()
+        message = await chat_container_client.read_item(item=message_id, partition_key=user_id)
         if message:
             message['feedback'] = feedback
-            resp = await self.container_client.upsert_item(message)
+            resp = await chat_container_client.upsert_item(message)
             return resp
         else:
             return False
 
     async def get_messages(self, user_id, conversation_id):
+        chat_container_client = self.create_chat_container_client()
         parameters = [
             {
                 'name': '@conversationId',
@@ -177,41 +186,90 @@ class CosmosConversationClient():
         ]
         query = f"SELECT * FROM c WHERE c.conversationId = @conversationId AND c.type='message' AND c.userId = @userId ORDER BY c.timestamp ASC"
         messages = []
-        async for item in self.container_client.query_items(query=query, parameters=parameters):
+        async for item in chat_container_client.query_items(query=query, parameters=parameters):
             messages.append(item)
 
         return messages
 
     async def get_documents(self, user_id: str, ragDocumentIds: list[str], embeddings: list[float]):
         documents = []
-        query=f"""SELECT TOP 10 c.text, c.payload, VectorDistance(c.contentVector, @embedding) AS SimilarityScore FROM c WHERE c.id IN ({', '.join(f"'{val}'" for val in ragDocumentIds)}) ORDER BY VectorDistance(c.contentVector, @embedding)"""
+        document_client = self.create_document_container_client()
+        query=f"""SELECT TOP 10 c.text, c.payload, VectorDistance(c.contentVector, @embedding) AS SimilarityScore FROM c WHERE c.metadata.blob_id IN ({', '.join(f"'{val}'" for val in ragDocumentIds)}) AND c.metadata.user_principal_id = @userId ORDER BY VectorDistance(c.contentVector, @embedding)"""
 
-        async for item in self.container_client.query_items(
+        async for item in document_client.query_items(
                 query=query,
-                parameters=[{"name": "@embedding", "value": embeddings}]
+                parameters=[
+                    {"name": "@userId", "value": user_id},
+                    {"name": "@embedding", "value": embeddings}
+                ]
             ):
             documents.append(item)
 
         return documents
 
     async def get_uploaded_documents(self, user_id, limit, offset = 0):
-        query = f"SELECT DISTINCT c.metadata.file_name, c.payload FROM c WHERE c.userId = @userId"
+        document_client = self.create_document_container_client()
+        query = f"SELECT DISTINCT c.metadata.blob_id, c.metadata.file_name, c.metadata.conversation_id FROM c WHERE c.metadata.user_principal_id = @userId"
         if limit is not None:
             query += f" offset {offset} limit {limit}" 
         
         documents = []
-        async for item in self.container_client.query_items(
-                query=query, 
+        async for item in document_client.query_items(
+                query=query,
                 parameters=[{"name": "@userId", "value": user_id}]
             ):
             documents.append(item)
         
         return documents
     
-    async def delete_document(self, user_id, document_id):
-        document = await self.container_client.read_item(item=document_id, partition_key=user_id)        
-        if document:
-            resp = await self.container_client.delete_item(item=document_id, partition_key=user_id)
-            return resp
-        else:
-            return True
+    async def delete_document(self, user_id, blob_id):
+        document_client = self.create_document_container_client()
+        query = "SELECT * FROM c WHERE c.metadata.blob_id = @blob_id AND c.metadata.user_principal_id = @userId"
+        response_list = []
+        documents = document_client.query_items(
+            query,
+            parameters=[
+                {"name": "@blob_id", "value": blob_id},
+                {"name": "@userId", "value": user_id}
+            ]
+        )
+
+        # Delete the items
+        async for document in documents:
+            response = await document_client.delete_item(item=document["id"], partition_key=user_id)
+            response_list.append(response)
+
+        return response_list
+    
+    async def delete_document_by_conversation_id(self, user_id, conversation_id):
+        document_client = self.create_document_container_client()
+        query = "SELECT * FROM c WHERE c.metadata.conversation_id = @conversation_id AND c.metadata.user_principal_id = @userId"
+        response_list = []
+        documents = document_client.query_items(
+            query,
+            parameters=[
+                {"name": "@conversation_id", "value": conversation_id},
+                {"name": "@userId", "value": user_id}
+            ]
+        )
+
+        # Delete the items
+        async for document in documents:
+            response = await document_client.delete_item(item=document["id"], partition_key=user_id)
+            response_list.append(response)
+
+        return response_list
+    
+    def create_chat_container_client(self):
+        try:
+            return self.database_client.get_container_client(self.chat_container_name)
+        except exceptions.CosmosResourceNotFoundError:
+            raise ValueError("Invalid CosmosDB container name")
+        
+    def create_document_container_client(self):
+        try:
+            return self.database_client.get_container_client(self.document_container_name)
+        except exceptions.CosmosResourceNotFoundError:
+            raise ValueError("Invalid CosmosDB container name") 
+        
+    

@@ -1,7 +1,7 @@
 import * as React from 'react'
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ITextField, Stack, Checkbox, IconButton, Dialog, DialogFooter, PrimaryButton, DefaultButton, DialogType } from '@fluentui/react'
-import { UploadedDocument, DocumentPayload } from '../../api/models'
+import { UploadedDocument } from '../../api/models'
 import { AppStateContext } from '../../state/AppProvider'
 import { useBoolean } from '@fluentui/react-hooks'
 
@@ -43,13 +43,13 @@ export const DocumentListItem: React.FC<Props> = ({ item, isSelected, onSelect }
     }, [textFieldFocused])
   
     const onDelete = async () => {
-        const response = await documentDelete(item.id)
+        const response = await documentDelete(item.blobId)
 
         if (!response.ok) {
           setErrorDelete(true)
           setTimeout(() => { setErrorDelete(false) }, 5000)
         } else {
-          appStateContext?.dispatch({ type: 'DELETE_UPLOADED_DOCUMENT', payload: item.id })
+          appStateContext?.dispatch({ type: 'DELETE_UPLOADED_DOCUMENT', payload: item.blobId })
         }
 
         toggleDeleteDialog()
@@ -57,12 +57,12 @@ export const DocumentListItem: React.FC<Props> = ({ item, isSelected, onSelect }
       
     return (
       <Stack
-        key={item.id}
+        key={item.blobId}
         tabIndex={0}
         aria-label="uploaded document item"
         className={styles.itemCell}
         verticalAlign="center"
-        onClick={() => onSelect(item.id, !isSelected)}
+        onClick={() => onSelect(item.blobId, !isSelected)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         styles={{
@@ -71,8 +71,8 @@ export const DocumentListItem: React.FC<Props> = ({ item, isSelected, onSelect }
           }
         }}>
             <Stack horizontal verticalAlign={'center'} style={{ width: '100%' }}>
-                <Checkbox checked={isSelected} onChange={(e, checked) => onSelect(item.id, checked || false)} />
-                <span>{item.payload?.find(item => item.Key === "file")?.Value}</span>
+                <Checkbox checked={isSelected} onChange={(e, checked) => onSelect(item.blobId, checked || false)} />
+                <span>{item.fileName}</span>
                 {(isSelected || isHovered) && (
                     <Stack horizontal horizontalAlign="end">
                         <IconButton

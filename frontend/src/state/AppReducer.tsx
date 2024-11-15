@@ -25,6 +25,17 @@ export const appStateReducer = (state: AppState, action: Action): AppState => {
       } else {
         return { ...state, chatHistory: [...state.chatHistory, action.payload] }
       }
+    case 'UPDATE_CURRENT_CHAT_AND_HISTORY':
+      if (!state.chatHistory) {
+        return state
+      }
+
+      const existingChatIndex = state.chatHistory.findIndex(conv => conv.id === action.payload.id)
+      if (existingChatIndex !== -1) {
+        return state;
+      }
+      
+      return { ...state, currentChat: action.payload, chatHistory: [...state.chatHistory, action.payload] }
     case 'UPDATE_CHAT_TITLE':
       if (!state.chatHistory) {
         return { ...state, chatHistory: [] }
@@ -44,21 +55,26 @@ export const appStateReducer = (state: AppState, action: Action): AppState => {
       if (!state.chatHistory) {
         return { ...state, chatHistory: [] }
       }
+
+      if(!state.uploadedDocuments) {
+        return { ...state, uploadedDocuments: [] }
+      }
+      
       const filteredChat = state.chatHistory.filter(chat => chat.id !== action.payload)
+      const filteredDocuments = state.uploadedDocuments.filter(document => document.conversationId !== action.payload)
+
       state.currentChat = null
       //TODO: make api call to delete conversation from DB
-      return { ...state, chatHistory: filteredChat }
+      return { ...state, chatHistory: filteredChat, uploadedDocuments: filteredDocuments }
     case 'DELETE_UPLOADED_DOCUMENT':
         if (!state.uploadedDocuments) {
           return { ...state, uploadedDocuments: [] }
         }
-        const filteredUploadedDocuments = state.uploadedDocuments.filter(document => document.id !== action.payload)
-        state.currentChat = null
-        //TODO: make api call to delete conversation from DB
+        const filteredUploadedDocuments = state.uploadedDocuments.filter(document => document.blobId !== action.payload)
         return { ...state, uploadedDocuments: filteredUploadedDocuments }
     case 'DELETE_CHAT_HISTORY':
       //TODO: make api call to delete all conversations from DB
-      return { ...state, chatHistory: [], filteredChatHistory: [], currentChat: null }
+      return { ...state, chatHistory: [], uploadedDocuments: [], filteredChatHistory: [], currentChat: null }
     case 'DELETE_CURRENT_CHAT_MESSAGES':
       //TODO: make api call to delete current conversation messages from DB
       if (!state.currentChat || !state.chatHistory) {

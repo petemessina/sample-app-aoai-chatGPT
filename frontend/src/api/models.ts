@@ -62,13 +62,9 @@ export type Conversation = {
 }
 
 export type UploadedDocument = {
-  id: string,
-  payload: Array<DocumentPayload>
-}
-
-export type DocumentPayload = {
-  Key: string;
-  Value: string;
+  blobId: string,
+  fileName: string,
+  conversationId: string
 }
 
 export enum ChatCompletionType {
