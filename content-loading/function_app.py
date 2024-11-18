@@ -12,17 +12,19 @@ from llama_index_service import LlamaIndexService
 
 app = func.FunctionApp()
 
-@app.blob_trigger(arg_name="indexBlob", path="documents/{container_name}", connection="stdocumentupload001_STORAGE")
+@app.blob_trigger(arg_name="indexBlob", path="documents/{container_name}", connection="DOCUMENT_STORAGE_ACCOUNT")
 def blob_trigger(indexBlob: func.InputStream):
     logging.info(f"Indexing blob: {indexBlob.name}")
     
     llama_index_service: LlamaIndexService = LlamaIndexService()
     blob_name: str = indexBlob.name.split("/")[-1]
     container_name = ''.join(indexBlob.name.rsplit('/', 1)[:-1])
+
     aoai_model_name: str = os.environ["OpenAIModelName"]
     aoai_api_key: str = os.environ["OpenAIAPIKey"]
     aoai_endpoint: str = os.environ["OpenAIEndpoint"]
     aoai_api_version: str = os.environ["OpenAIAPIVersion"]
+
     vector_store = __create_vector_store__()
     embed_model = __create_embedding_model__()
     blob_loader = __create_blob_loader__(container_name, blob_name)
@@ -82,15 +84,23 @@ def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
 
 # Create the Azure Blob Loader
 def __create_blob_loader__(container_name: str, blob_name: str) -> AzStorageBlobReader:
-    account_url: str = os.environ["StorageAccountUrl"]
-    connection_string: str = os.environ["StorageAccountConnectionString"]
-    
+    account_url: str = f"https://{os.environ['StorageAccountName']}.blob.core.windows.net"
+
+    try:
+        connection_string: str = os.environ["StorageAccountConnectionString"]
+    except KeyError:
+        connection_string = None
+
+    if (connection_string == None):
+        credential = DefaultAzureCredential()
+
     logging.info(f"Creating Azure Blob Loader for container {container_name} and blob {blob_name}.")
 
     return AzStorageBlobReader(
         container_name=container_name,
         blob=blob_name,
         account_url=account_url,
+        credential=credential,
         connection_string=connection_string
     )
 
@@ -115,12 +125,23 @@ def __create_embedding_model__() -> AzureOpenAIEmbedding:
 
 # Create Blob Client
 def __create_blob_client__(container_name: str, blob_name: str) -> BlobClient:
-    connection_string: str = os.environ["StorageAccountConnectionString"]
+    account_url: str = f"https://{os.environ['StorageAccountName']}.blob.core.windows.net"
+
+    try:
+        connection_string: str = os.environ["StorageAccountConnectionString"]
+    except KeyError:
+        connection_string = None
 
     logging.info(f"Creating Blob Client for container {container_name} and blob {blob_name}.")
 
-    return BlobClient.from_connection_string(
-        conn_str=connection_string,
-        container_name=container_name,
-        blob_name=blob_name
-    )
+    if (connection_string):
+        return BlobClient.from_connection_string(
+            conn_str=connection_string,
+            container_name=container_name,
+            blob_name=blob_name
+        )
+    else:
+        return BlobClient(account_url=account_url, 
+                          container_name=container_name, 
+                          blob_name=blob_name, 
+                          credential=DefaultAzureCredential())

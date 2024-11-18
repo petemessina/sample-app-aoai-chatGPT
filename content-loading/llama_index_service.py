@@ -3,6 +3,7 @@ from llama_index.core import (StorageContext, VectorStoreIndex)
 from llama_index.core.settings import Settings
 from llama_index.core.vector_stores.types import VectorStore
 from llama_index.readers.azstorage_blob import AzStorageBlobReader
+from llama_index.core.readers.base import BaseReader
 from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
 from azure.storage.blob import BlobClient
 
@@ -16,7 +17,7 @@ class LlamaIndexService:
         aoai_api_version: str,
         vector_store: VectorStore,
         embed_model: AzureOpenAIEmbedding,
-        blob_loader: AzStorageBlobReader,
+        blob_loader: BaseReader,
         blob_client: BlobClient
     ) -> VectorStoreIndex:
 
