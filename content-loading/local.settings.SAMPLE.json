@@ -11,9 +11,9 @@
     "OpenAIModelName": "gpt-4o",
     "OpenAIEmbeddingModelName": "text-embedding-ada-002",
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
-  # Use this to connect to the storage account with a connection string containing the access key
+  // Use this to connect to the storage account with a connection string containing the access key
     "DOCUMENT_STORAGE_ACCOUNT": "<storage account connection string>",
-  # Use this to connect to the storage account with a managed identity (recommended)
+  // Use this to connect to the storage account with a managed identity (recommended)
     "DOCUMENT_STORAGE_ACCOUNT__serviceUri": "<storage account service uri>",
     "StorageAccountName": "<storage account name>"
   },
