@@ -5,6 +5,14 @@ import { ChatMessage, Conversation, ConversationRequest, CosmosDBHealth, CosmosD
 interface UploadResponse {
   message: string;
   isUploaded: boolean;
+  document_status: DocumentStatus;
+}
+
+interface DocumentStatus {
+  id: string;
+  conversationId: string;
+  fileName: string;
+  status: string;
 }
 
 export async function conversationApi(options: ConversationRequest, abortSignal: AbortSignal): Promise<Response> {
@@ -15,7 +23,7 @@ export async function conversationApi(options: ConversationRequest, abortSignal:
     },
     body: JSON.stringify({
       messages: options.messages,
-      ragDocumentIds: options.ragDocumentIds
+      ragMasterDocumentIds: options.ragMasterDocumentIds
     }),
     signal: abortSignal
   })
@@ -48,9 +56,39 @@ export const uploadedDocumentList = async (offset = 0): Promise<UploadedDocument
       const payload = await response.json();
       const documents: Array<UploadedDocument> = payload.map((doc: any) => {
         return {
-          blobId: doc.blob_id,
+          id: doc.id,
           fileName: doc.file_name,
-          conversationId: doc.conversation_id
+          conversationId: doc.conversation_id,
+          status: doc.status
+        };
+      });
+
+      return documents;
+    }).catch(_err => {
+      console.error('There was an issue fetching your data.')
+      return null
+    });
+
+    return response
+}
+
+export const getDocumentStatuses = async (documentIds: Array<string>): Promise<UploadedDocument[] | null> => {
+  const response = await fetch(`/documents/statuses`, {
+    method: 'POST',
+    body: JSON.stringify({
+      documentIds: documentIds
+    }),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  }).then(async response => {
+      const payload = await response.json();
+      const documents: Array<UploadedDocument> = payload.map((doc: any) => {
+        return {
+          id: doc.id,
+          fileName: doc.file_name,
+          conversationId: doc.conversation_id,
+          status: doc.status
         };
       });
 
@@ -150,12 +188,12 @@ export const historyGenerate = async (
     body = JSON.stringify({
       conversation_id: convId,
       messages: options.messages,
-      ragDocumentIds: options.ragDocumentIds
+      ragMasterDocumentIds: options.ragMasterDocumentIds
     })
   } else {
     body = JSON.stringify({
       messages: options.messages,
-      ragDocumentIds: options.ragDocumentIds
+      ragMasterDocumentIds: options.ragMasterDocumentIds
     })
   }
   const response = await fetch('/history/generate', {
@@ -383,7 +421,7 @@ export const historyMessageFeedback = async (messageId: string, feedback: string
   return response
 }
 
-export const generateConversationbPlaceholder = async (conversationTitle: string): Promise<Response> => {
+export const generateConversationPlaceholder = async (conversationTitle: string): Promise<Response> => {
   const response = await fetch('/history/generate_placeholder', {
     method: 'POST',
     body: JSON.stringify({
@@ -418,26 +456,38 @@ export const uploadFile = async (file: File, conversationId?: string): Promise<U
     method: 'POST',
     body: formData
   })
-    .then(res => {
-      return res
-    })
-    .catch(_err => {
-      console.error('There was an issue uploading your file.')
-      const errRes: Response = {
-        ...new Response(),
-        ok: false,
-        status: 500
-      }
-      return errRes
-    })
-  return response.json()
+  .then(res => {
+    return res
+  })
+  .catch(_err => {
+    console.error('There was an issue uploading your file.')
+    const errRes: Response = {
+      ...new Response(),
+      ok: false,
+      status: 500
+    }
+    return errRes
+  })
+
+  const payload = await response.json()
+
+  return { 
+    message: payload.message, 
+    isUploaded: payload.isUploaded, 
+    document_status: { 
+      id: payload.document_status.id, 
+      conversationId: payload.document_status.conversation_id,
+      fileName: payload.document_status.file_name,
+      status: payload.document_status.status
+    } 
+  }
 }
 
-export const documentDelete = async (blobId: string): Promise<Response> => {
+export const documentDelete = async (id: string): Promise<Response> => {
   const response = await fetch('/document/delete', {
     method: 'DELETE',
     body: JSON.stringify({
-      blob_id: blobId
+      id: id
     }),
     headers: {
       'Content-Type': 'application/json'

@@ -54,7 +54,8 @@ def create_app():
             app.cosmos_client = await init_cosmosdb_client(
                 database_name=app_settings.chat_history.database,
                 chat_container_name=app_settings.chat_history.conversations_container,
-                document_container_name=app_settings.document_upload.documents_container
+                document_chunks_container_name=app_settings.document_upload.document_chunks_container,
+                document_status_container_name=app_settings.document_upload.document_status_container
             )
             
             cosmos_db_ready.set()
@@ -182,11 +183,11 @@ async def init_openai_client():
         azure_openai_client = None
         raise e
 
-async def search_cosmos_documents(openAIclient: AsyncAzureOpenAI, user_id: str, ragDocumentIds: list[str], text: str):
+async def search_cosmos_documents(openAIclient: AsyncAzureOpenAI, user_id: str, ragMasterDocumentIds: list[str], text: str):
     
     try:
         embeddings = await create_embedding(openAIclient, text)
-        documents = await current_app.cosmos_client.get_documents(user_id, ragDocumentIds, embeddings)
+        documents = await current_app.cosmos_client.get_documents(user_id, ragMasterDocumentIds, embeddings)
         return documents
 
     except Exception as e:
@@ -204,7 +205,7 @@ async def create_embedding(client: AsyncAzureOpenAI, text: str):
     return embedding
 
    
-async def init_cosmosdb_client(database_name: str, chat_container_name: str, document_container_name: str):
+async def init_cosmosdb_client(database_name: str, chat_container_name: str, document_chunks_container_name: str, document_status_container_name: str):
     cosmos_client = None
     if app_settings.chat_history:
         try:
@@ -224,7 +225,8 @@ async def init_cosmosdb_client(database_name: str, chat_container_name: str, doc
                 credential=credential,
                 database_name=database_name,
                 chat_container_name=chat_container_name,
-                document_container_name=document_container_name,
+                document_chunks_container_name=document_chunks_container_name,
+                document_status_container_name=document_status_container_name,
                 enable_message_feedback=app_settings.chat_history.enable_feedback,
             )
         except Exception as e:
@@ -378,7 +380,7 @@ async def promptflow_request(request):
 async def send_chat_request(request_body, request_headers):
     filtered_messages = []
     messages = request_body.get("messages", [])
-    rag_document_ids = request_body.get("ragDocumentIds", [])
+    rag_document_ids = request_body.get("ragMasterDocumentIds", [])
     authenticated_user = get_authenticated_user_details(request_headers=request.headers)
     user_id = authenticated_user["user_principal_id"]
 
@@ -920,9 +922,9 @@ async def ensure_cosmos():
 async def upload_file():
     data = await request.files
     form = await request.form
-    conversationId = form.get('conversationId')
+    conversation_id = form.get('conversationId')
 
-    if not conversationId:
+    if not conversation_id:
         return jsonify({'error': 'conversationId is required'}), 400
     
     if 'file' not in data:
@@ -955,14 +957,33 @@ async def upload_file():
         metadata = {
             'author': user_name,
             'user_principal_id': user_principal_id,
-            'conversation_id': conversationId,
-            'blob_id': str(uuid.uuid4())
+            'conversation_id': conversation_id,
+            'master_document_id': str(uuid.uuid4())
         }
 
         try:
-            blob_client = container_client.get_blob_client(f"{conversationId}/{file.filename}")
+            document_status = await current_app.cosmos_client.create_document_status(user_principal_id, conversation_id, file.filename)
+            blob_client = container_client.get_blob_client(f"{conversation_id}/{file.filename}")
+            metadata = {
+                'author': user_name,
+                'user_principal_id': user_principal_id,
+                'conversation_id': conversation_id,
+                'master_document_id': document_status['id']
+            }
+
             await blob_client.upload_blob(file, metadata=metadata, overwrite=True)
-            return jsonify({'message': 'File uploaded successfully', 'isUploaded': True}), 200
+            
+            return jsonify({
+                'message': 'File uploaded successfully', 
+                'isUploaded': True,
+                'document_status': {
+                    'id': document_status['id'],
+                    'conversation_id': document_status['conversation_id'],
+                    'file_name': document_status['file_name'],
+                    'status': document_status['status']
+                }
+                }), 200
+        
         except Exception as e:
             return jsonify({'message': str(e), 'isUploaded': False}), 500
 
@@ -974,10 +995,10 @@ async def delete_document():
     request_json = await request.get_json()
 
     user_id = authenticated_user["user_principal_id"]
-    blob_id = request_json.get("blob_id", None)
+    id = request_json.get("id", None)
 
-    if not blob_id:
-        return jsonify({"error": "blob_id is required"}), 400
+    if not id:
+        return jsonify({"error": "id is required"}), 400
     
     ## make sure cosmos is configured
     if not current_app.cosmos_client:
@@ -985,10 +1006,33 @@ async def delete_document():
 
     ## get the documents from cosmos
     documents = await current_app.cosmos_client.delete_document(
-        user_id, blob_id
+        user_id, id
     )
     if not isinstance(documents, list):
         return jsonify({"error": f"No documents was deleted"}), 404
+
+    ## return the documents
+    return jsonify(documents), 200
+
+@bp.route("/documents/statuses", methods=["POST"])
+async def get_document_statuses():
+    await cosmos_db_ready.wait()
+    request_body = await request.get_json()
+    authenticated_user = get_authenticated_user_details(request_headers=request.headers)
+    user_id = authenticated_user["user_principal_id"]
+    document_ids = request_body.get("documentIds", [])
+
+    ## make sure cosmos is configured
+    if not current_app.cosmos_client:
+        raise Exception("CosmosDB is not configured or not working")
+
+    ## get the documents from cosmos
+    documents = await current_app.cosmos_client.get_documents_statuses(
+        user_id, document_ids
+    )
+    
+    if not isinstance(documents, list):
+        return jsonify({"error": f"No documents are uploaded for {user_id}"}), 404
 
     ## return the documents
     return jsonify(documents), 200

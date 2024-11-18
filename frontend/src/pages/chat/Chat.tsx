@@ -223,7 +223,7 @@ const Chat = () => {
 
     const request: ConversationRequest = {
       messages: [...conversation.messages.filter(answer => answer.role !== ERROR)],
-      ragDocumentIds: selectedUploadedDocuments || []
+      ragMasterDocumentIds: selectedUploadedDocuments || []
     }
 
     let result = {} as ChatResponse
@@ -338,13 +338,13 @@ const Chat = () => {
         conversation.messages.push(userMessage)
         request = {
           messages: [...conversation.messages.filter(answer => answer.role !== ERROR)],
-          ragDocumentIds: selectedUploadedDocuments || []
+          ragMasterDocumentIds: selectedUploadedDocuments || []
         }
       }
     } else {
       request = {
         messages: [userMessage].filter(answer => answer.role !== ERROR),
-        ragDocumentIds: selectedUploadedDocuments || []
+        ragMasterDocumentIds: selectedUploadedDocuments || []
       }
       setMessages(request.messages)
     }

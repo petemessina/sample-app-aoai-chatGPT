@@ -3,7 +3,7 @@ import azure.functions as func
 import logging
 from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
 from llama_index.vector_stores.azurecosmosnosql import AzureCosmosDBNoSqlVectorSearch
-from azure.cosmos import CosmosClient, PartitionKey
+from azure.cosmos import CosmosClient, ContainerProxy, PartitionKey
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobClient
 
@@ -23,21 +23,38 @@ def blob_trigger(indexBlob: func.InputStream):
     aoai_api_key: str = os.environ["OpenAIAPIKey"]
     aoai_endpoint: str = os.environ["OpenAIEndpoint"]
     aoai_api_version: str = os.environ["OpenAIAPIVersion"]
+    cosmos_status_client: ContainerProxy = __create_cosmos_status_client__()
     vector_store = __create_vector_store__()
     embed_model = __create_embedding_model__()
     blob_loader = __create_blob_loader__(container_name, blob_name)
     blob_client = __create_blob_client__(container_name, blob_name)
 
-    llama_index_service.index_documents(
-        aoai_model_name,
-        aoai_api_key,
-        aoai_endpoint,
-        aoai_api_version,
-        vector_store,
-        embed_model,
-        blob_loader,
-        blob_client
-    )
+    try:
+        logging.info(f"Indexing blob {blob_name} in container {container_name}.")
+        llama_index_service.index_documents(
+            aoai_model_name,
+            aoai_api_key,
+            aoai_endpoint,
+            aoai_api_version,
+            cosmos_status_client,
+            vector_store,
+            embed_model,
+            blob_loader,
+            blob_client
+        )
+    except Exception as e:
+        logging.error(f"Error indexing blob {blob_name} in container {container_name}: {e}")
+
+def __create_cosmos_status_client__() -> ContainerProxy:
+    endpoint = os.environ["CosmosDBEndpoint"]
+    database_name = os.environ["CosmosDBDatabase"]
+    document_status_container_name = os.environ["CosmosDBDocumentStatusContainer"]
+    credential = DefaultAzureCredential()
+    cosmos_client = CosmosClient(endpoint, credential)
+    database_client = cosmos_client.get_database_client(database_name)
+    container_client = database_client.get_container_client(document_status_container_name)
+
+    return container_client
 
 def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
     endpoint = os.environ["CosmosDBEndpoint"]
