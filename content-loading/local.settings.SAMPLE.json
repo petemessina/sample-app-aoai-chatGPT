@@ -1,0 +1,21 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "CosmosDBEndpoint": "<cosmos db endpoint uri>",
+    "CosmosDBDatabase": "db_conversation_history",
+    "CosmosDBContainer": "documents",
+    "OpenAIAPIKey": "<openai api key>",
+    "OpenAIEndpoint": "<openai endpoint uri>",
+    "OpenAIAPIVersion": "2024-05-01-preview",
+    "OpenAIModelName": "gpt-4o",
+    "OpenAIEmbeddingModelName": "text-embedding-ada-002",
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+  // Use this to connect to the storage account with a connection string containing the access key
+    "DOCUMENT_STORAGE_ACCOUNT": "<storage account connection string>",
+  // Use this to connect to the storage account with a managed identity (recommended)
+    "DOCUMENT_STORAGE_ACCOUNT__serviceUri": "<storage account service uri>",
+    "StorageAccountName": "<storage account name>"
+  },
+  "ConnectionStrings": {}
+}
