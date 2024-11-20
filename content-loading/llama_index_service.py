@@ -1,3 +1,5 @@
+import logging
+
 from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.core import (StorageContext, VectorStoreIndex)
 from llama_index.core.settings import Settings
@@ -52,6 +54,7 @@ class LlamaIndexService:
 
             return index
         except Exception as e:
+            logging.error(f"Error indexing blob: {e}")
             self.__update_document_status__(master_document_id, user_principal_id, "Failed", document_status_container_client)
     
     def __update_document_status__(self, document_id: str, user_id: str, status: str, container_client: ContainerProxy):

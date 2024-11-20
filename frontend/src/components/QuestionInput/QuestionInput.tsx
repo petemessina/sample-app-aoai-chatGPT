@@ -98,13 +98,6 @@ export const QuestionInput = ({ onSend, disabled, placeholder, clearOnSend, conv
               accept="image/*"
               className={styles.fileInput}
             />
-            <label htmlFor="fileInput" className={styles.fileLabel} aria-label='Upload Image'>
-              <FontIcon
-                className={styles.fileIcon}
-                iconName={'PhotoCollection'}
-                aria-label='Upload Image'
-              />
-            </label>
             <label htmlFor="fileUpload" className={styles.fileLabel} aria-label='Attach File' onClick={() => setIsModalOpen(true)}>
               <FontIcon
                 className={styles.fileIcon}

@@ -40,7 +40,7 @@ export const DocumentListPanel: React.FC<Props> = ({conversationId, handleSelect
   const [observerCounter, setObserverCounter] = useState(0)
   const [filteredUploadedDocuments, setFilteredUploadedDocuments] = useState<UploadedDocument[]>([])
   const [selectedUploadedDocuments, setSelectedUploadedDocuments] = useState<string[]>([]);
-  const { documentStatuses } = useDocumentStatusPoller(appStateContext?.state.pendingDocuments ?? [], 1000)
+  const { documentStatuses } = useDocumentStatusPoller(appStateContext?.state.pendingDocuments ?? [], 5000)
 
   const observerTarget = useRef(null)
   const firstRender = useRef(true)

@@ -3,10 +3,21 @@ from typing import List
 from datetime import datetime
 from azure.cosmos.aio import CosmosClient
 from azure.cosmos import exceptions
-  
+from backend.context.document_status_context import DocumentStatusContext
+
 class CosmosConversationClient():
     
-    def __init__(self, cosmosdb_endpoint: str, credential: any, database_name: str, chat_container_name: str, document_chunks_container_name: str, document_status_container_name: str, enable_message_feedback: bool = False):
+    def __init__(self,
+        document_status_context: DocumentStatusContext,
+        cosmosdb_endpoint: str,
+        credential: any,
+        database_name: str,
+        chat_container_name: str,
+        document_chunks_container_name: str,
+        document_status_container_name: str,
+        enable_message_feedback: bool = False
+    ):
+        self.document_status_context = document_status_context
         self.cosmosdb_endpoint = cosmosdb_endpoint
         self.credential = credential
         self.database_name = database_name
@@ -74,7 +85,7 @@ class CosmosConversationClient():
         conversation = await chat_container_client.read_item(item=conversation_id, partition_key=user_id)        
         if conversation:
             resp = await chat_container_client.delete_item(item=conversation_id, partition_key=user_id)
-            await self.delete_document_by_conversation_id(user_id, conversation_id)           
+            await self.document_status_context.delete_document_by_conversation_id(user_id, conversation_id)           
 
             return resp
         else:
@@ -91,7 +102,7 @@ class CosmosConversationClient():
                 resp = await chat_container_client.delete_item(item=message['id'], partition_key=user_id)
                 response_list.append(resp)
 
-            await self.delete_document_by_conversation_id(user_id, conversation_id)
+            await self.document_status_context.delete_document_by_conversation_id(user_id, conversation_id)
             return response_list
 
 
@@ -193,113 +204,11 @@ class CosmosConversationClient():
 
         return messages
 
-    async def create_document_status(self, user_id: str, conversation_id: str, file_name: str):
-        document_status_client = self.create_document_status_container_client()
-        document_status = {
-            'id': str(uuid.uuid4()),
-            'user_principal_id': user_id,
-            'conversation_id': conversation_id,
-            'file_name': file_name,
-            'status': 'Uploaded',
-            'createdAt': datetime.utcnow().isoformat(),  
-            'updatedAt': datetime.utcnow().isoformat()            
-        }
-        
-        resp = await document_status_client.upsert_item(document_status)  
-        if resp:
-            return resp
-        else:
-            return False
-
-    async def get_documents(self, user_id: str, ragMasterDocumentIds: list[str], embeddings: list[float]):
-        documents = []
-        document_chunk_client = self.create_document_chunk_container_client()
-        query=f"""SELECT TOP 10 c.text, c.payload, VectorDistance(c.contentVector, @embedding) AS SimilarityScore FROM c WHERE c.metadata.master_document_id IN ({', '.join(f"'{val}'" for val in ragMasterDocumentIds)}) AND c.metadata.user_principal_id = @userId ORDER BY VectorDistance(c.contentVector, @embedding)"""
-
-        async for item in document_chunk_client.query_items(
-                query=query,
-                parameters=[
-                    {"name": "@userId", "value": user_id},
-                    {"name": "@embedding", "value": embeddings}
-                ]
-            ):
-            documents.append(item)
-
-        return documents
-
-    async def get_documents_statuses(self, user_id: str, masterDocumentIds: list[str]):
-        documents = []
-        document_status_client = self.create_document_status_container_client()
-
-        # Construct the query string using ARRAY_CONTAINS
-        query = "SELECT c.id, c.status, c.conversation_id, c.file_name FROM c WHERE ARRAY_CONTAINS(@ids, c.id) AND c.user_principal_id = @userId"
-
-        async for item in document_status_client.query_items(
-                query=query,
-                parameters=[
-                    {"name": "@ids", "value": masterDocumentIds},
-                    {"name": "@userId", "value": user_id}
-                ]
-            ):
-            documents.append(item)
-
-        return documents
-
-    async def get_uploaded_documents(self, user_id, limit, offset = 0):
-        document_status_client = self.create_document_status_container_client()
-        query = f"SELECT c.id, c.file_name, c.conversation_id, c.status FROM c WHERE c.user_principal_id = @userId"
-        if limit is not None:
-            query += f" offset {offset} limit {limit}" 
-        
-        documents = []
-        async for item in document_status_client.query_items(
-                query=query,
-                parameters=[{"name": "@userId", "value": user_id}]
-            ):
-            documents.append(item)
-        
-        return documents
     
-    async def delete_document(self, user_id, master_document_id):
-        document_chunk_client = self.create_document_chunk_container_client()
-        document_status_client = self.create_document_status_container_client()
-        query = "SELECT * FROM c WHERE c.metadata.master_document_id = @master_document_id AND c.metadata.user_principal_id = @userId"
-        response_list = []
-        documents = document_chunk_client.query_items(
-            query,
-            parameters=[
-                {"name": "@master_document_id", "value": master_document_id},
-                {"name": "@userId", "value": user_id}
-            ]
-        )
 
-        # Delete the items
-        await document_status_client.delete_item(item=master_document_id, partition_key=user_id)
-
-        async for document in documents:
-            response = await document_chunk_client.delete_item(item=document["id"], partition_key=user_id)
-            response_list.append(response)
-
-        return response_list
     
-    async def delete_document_by_conversation_id(self, user_id, conversation_id):
-        document_status_client = self.create_document_status_container_client()
-        query = "SELECT * FROM c WHERE c.conversation_id = @conversation_id AND c.user_principal_id = @userId"
-        response_list = []
-        documents = document_status_client.query_items(
-            query,
-            parameters=[
-                {"name": "@conversation_id", "value": conversation_id},
-                {"name": "@userId", "value": user_id}
-            ]
-        )
-
-        # Delete the items
-        async for document in documents:
-            response = await self.delete_document(user_id, document['id'])
-            response_list.append(response)
-
-        return response_list
+    
+    
     
     def create_chat_container_client(self):
         try:

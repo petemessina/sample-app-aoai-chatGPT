@@ -2,17 +2,17 @@ import os
 import azure.functions as func
 import logging
 from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
-from llama_index.vector_stores.azurecosmosnosql import AzureCosmosDBNoSqlVectorSearch
 from azure.cosmos import CosmosClient, ContainerProxy, PartitionKey
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobClient
 
 from AzStorageBlobReader import AzStorageBlobReader
+from AzureCosmosDBNoSqlVectorSearch import AzureCosmosDBNoSqlVectorSearch
 from llama_index_service import LlamaIndexService
 
 app = func.FunctionApp()
 
-@app.blob_trigger(arg_name="indexBlob", path="documents/{container_name}", connection="stdocumentupload001_STORAGE")
+@app.blob_trigger(arg_name="indexBlob", path="documents/{container_name}", connection="stdocumentupload001")
 def blob_trigger(indexBlob: func.InputStream):
     logging.info(f"Indexing blob: {indexBlob.name}")
     
@@ -99,8 +99,8 @@ def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
 
 # Create the Azure Blob Loader
 def __create_blob_loader__(container_name: str, blob_name: str) -> AzStorageBlobReader:
-    account_url: str = os.environ["StorageAccountUrl"]
-    connection_string: str = os.environ["StorageAccountConnectionString"]
+    storage_account_name: str = os.environ["StorageAccountName"]
+    account_url = f"https://{storage_account_name}.blob.core.windows.net"
     
     logging.info(f"Creating Azure Blob Loader for container {container_name} and blob {blob_name}.")
 
@@ -108,7 +108,7 @@ def __create_blob_loader__(container_name: str, blob_name: str) -> AzStorageBlob
         container_name=container_name,
         blob=blob_name,
         account_url=account_url,
-        connection_string=connection_string
+        credential=DefaultAzureCredential()
     )
 
 # Create the Azure OpenAI Embedding Model
@@ -132,12 +132,15 @@ def __create_embedding_model__() -> AzureOpenAIEmbedding:
 
 # Create Blob Client
 def __create_blob_client__(container_name: str, blob_name: str) -> BlobClient:
-    connection_string: str = os.environ["StorageAccountConnectionString"]
-
     logging.info(f"Creating Blob Client for container {container_name} and blob {blob_name}.")
 
-    return BlobClient.from_connection_string(
-        conn_str=connection_string,
-        container_name=container_name,
-        blob_name=blob_name
+    storage_account_name: str = os.environ["StorageAccountName"]
+    account_url = f"https://{storage_account_name}.blob.core.windows.net"
+    credential = DefaultAzureCredential()
+
+    return BlobClient(
+        account_url,
+        container_name,
+        blob_name,
+        credential=credential
     )
