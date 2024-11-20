@@ -1,6 +1,7 @@
 import os
 import azure.functions as func
 import logging
+from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
 from azure.cosmos import CosmosClient, ContainerProxy, PartitionKey
 from azure.identity import DefaultAzureCredential
@@ -12,49 +13,28 @@ from llama_index_service import LlamaIndexService
 
 app = func.FunctionApp()
 
-@app.blob_trigger(arg_name="indexBlob", path="documents/{container_name}", connection="stdocumentupload001")
+@app.blob_trigger(arg_name="indexBlob", path="documents/{container_name}", connection="DOCUMENT_STORAGE_ACCOUNT")
 def blob_trigger(indexBlob: func.InputStream):
     logging.info(f"Indexing blob: {indexBlob.name}")
     
     llama_index_service: LlamaIndexService = LlamaIndexService()
     blob_name: str = indexBlob.name.split("/")[-1]
     container_name = ''.join(indexBlob.name.rsplit('/', 1)[:-1])
-    aoai_model_name: str = os.environ["OpenAIModelName"]
-    aoai_api_key: str = os.environ["OpenAIAPIKey"]
-    aoai_endpoint: str = os.environ["OpenAIEndpoint"]
-    aoai_api_version: str = os.environ["OpenAIAPIVersion"]
-    cosmos_status_client: ContainerProxy = __create_cosmos_status_client__()
     vector_store = __create_vector_store__()
+    llm = __create_llm__()
     embed_model = __create_embedding_model__()
-    blob_loader = __create_blob_loader__(container_name, blob_name)
     blob_client = __create_blob_client__(container_name, blob_name)
+    blob_loader = __create_blob_loader__(blob_client)
 
-    try:
-        logging.info(f"Indexing blob {blob_name} in container {container_name}.")
-        llama_index_service.index_documents(
-            aoai_model_name,
-            aoai_api_key,
-            aoai_endpoint,
-            aoai_api_version,
-            cosmos_status_client,
-            vector_store,
-            embed_model,
-            blob_loader,
-            blob_client
-        )
-    except Exception as e:
-        logging.error(f"Error indexing blob {blob_name} in container {container_name}: {e}")
+    llama_index_service.index_documents(
+        llm,
+        vector_store,
+        embed_model,
+        blob_loader
+    )
 
-def __create_cosmos_status_client__() -> ContainerProxy:
-    endpoint = os.environ["CosmosDBEndpoint"]
-    database_name = os.environ["CosmosDBDatabase"]
-    document_status_container_name = os.environ["CosmosDBDocumentStatusContainer"]
-    credential = DefaultAzureCredential()
-    cosmos_client = CosmosClient(endpoint, credential)
-    database_client = cosmos_client.get_database_client(database_name)
-    container_client = database_client.get_container_client(document_status_container_name)
+    blob_client.delete_blob()
 
-    return container_client
 
 def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
     endpoint = os.environ["CosmosDBEndpoint"]
@@ -98,17 +78,25 @@ def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
 
 
 # Create the Azure Blob Loader
-def __create_blob_loader__(container_name: str, blob_name: str) -> AzStorageBlobReader:
-    storage_account_name: str = os.environ["StorageAccountName"]
-    account_url = f"https://{storage_account_name}.blob.core.windows.net"
-    
-    logging.info(f"Creating Azure Blob Loader for container {container_name} and blob {blob_name}.")
+def __create_blob_loader__(blob_client: BlobClient) -> AzStorageBlobReader:
 
-    return AzStorageBlobReader(
-        container_name=container_name,
-        blob=blob_name,
-        account_url=account_url,
-        credential=DefaultAzureCredential()
+    blob_properties = blob_client.get_blob_properties()
+    logging.info(f"Creating Azure Blob Loader for container {blob_properties.container} and blob {blob_properties.name}.")
+
+    return AzStorageBlobReader(blob_client=blob_client)
+
+def __create_llm__() -> AzureOpenAI:
+    model_name: str = os.environ["OpenAIModelName"]
+    api_key: str = os.environ["OpenAIAPIKey"]
+    endpoint: str = os.environ["OpenAIEndpoint"]
+    api_version: str = os.environ["OpenAIAPIVersion"]
+
+    return AzureOpenAI(
+        model=model_name,
+        deployment_name=model_name,
+        api_key=api_key,
+        azure_endpoint=endpoint,
+        api_version=api_version
     )
 
 # Create the Azure OpenAI Embedding Model
@@ -132,15 +120,23 @@ def __create_embedding_model__() -> AzureOpenAIEmbedding:
 
 # Create Blob Client
 def __create_blob_client__(container_name: str, blob_name: str) -> BlobClient:
+    account_url: str = f"https://{os.environ['StorageAccountName']}.blob.core.windows.net"
+
+    try:
+        connection_string: str = os.environ["StorageAccountConnectionString"]
+    except KeyError:
+        connection_string = None
+
     logging.info(f"Creating Blob Client for container {container_name} and blob {blob_name}.")
 
-    storage_account_name: str = os.environ["StorageAccountName"]
-    account_url = f"https://{storage_account_name}.blob.core.windows.net"
-    credential = DefaultAzureCredential()
-
-    return BlobClient(
-        account_url,
-        container_name,
-        blob_name,
-        credential=credential
-    )
+    if (connection_string):
+        return BlobClient.from_connection_string(
+            conn_str=connection_string,
+            container_name=container_name,
+            blob_name=blob_name
+        )
+    else:
+        return BlobClient(account_url=account_url, 
+                          container_name=container_name, 
+                          blob_name=blob_name, 
+                          credential=DefaultAzureCredential())
