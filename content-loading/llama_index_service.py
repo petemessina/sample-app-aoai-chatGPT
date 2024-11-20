@@ -16,8 +16,6 @@ class LlamaIndexService:
         embed_model: AzureOpenAIEmbedding,
         loader: BaseReader
     ) -> VectorStoreIndex:
-
-        documents = loader.load_data()
         
         try:
             documents = loader.load_data()
