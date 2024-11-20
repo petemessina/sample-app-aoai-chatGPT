@@ -13,8 +13,13 @@
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
   // Use this to connect to the storage account with a connection string containing the access key
     "DOCUMENT_STORAGE_ACCOUNT": "<storage account connection string>",
-  // Use this to connect to the storage account with a managed identity (recommended)
-    "DOCUMENT_STORAGE_ACCOUNT__serviceUri": "<storage account service uri>",
+  // Use the two lines below to connect to the storage account with a managed identity (recommended)
+  // NOTE: The managed identity must have the Storage Blob Data Contributor role 
+  //       AND the Storage Queue Data Contributor role on the storage account
+  // The __queueServiceUri is needed due to a bug in the Functions runtime when using managed identity
+  // See: https://github.com/Azure/azure-functions-host/issues/8019
+    "DOCUMENT_STORAGE_ACCOUNT__blobServiceUri": "<storage account blob service uri>",
+    "DOCUMENT_STORAGE_ACCOUNT__queueServiceUri": "<storage account queue service uri>",
     "StorageAccountName": "<storage account name>"
   },
   "ConnectionStrings": {}
