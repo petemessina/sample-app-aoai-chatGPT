@@ -1,6 +1,7 @@
 import os
 import azure.functions as func
 import logging
+from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
 from llama_index.vector_stores.azurecosmosnosql import AzureCosmosDBNoSqlVectorSearch
 from azure.cosmos import CosmosClient, PartitionKey
@@ -20,26 +21,21 @@ def blob_trigger(indexBlob: func.InputStream):
     blob_name: str = indexBlob.name.split("/")[-1]
     container_name = ''.join(indexBlob.name.rsplit('/', 1)[:-1])
 
-    aoai_model_name: str = os.environ["OpenAIModelName"]
-    aoai_api_key: str = os.environ["OpenAIAPIKey"]
-    aoai_endpoint: str = os.environ["OpenAIEndpoint"]
-    aoai_api_version: str = os.environ["OpenAIAPIVersion"]
-
     vector_store = __create_vector_store__()
+    llm = __create_llm__()
     embed_model = __create_embedding_model__()
-    blob_loader = __create_blob_loader__(container_name, blob_name)
     blob_client = __create_blob_client__(container_name, blob_name)
+    blob_loader = __create_blob_loader__(blob_client)
 
     llama_index_service.index_documents(
-        aoai_model_name,
-        aoai_api_key,
-        aoai_endpoint,
-        aoai_api_version,
+        llm,
         vector_store,
         embed_model,
-        blob_loader,
-        blob_client
+        blob_loader
     )
+
+    blob_client.delete_blob()
+
 
 def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
     endpoint = os.environ["CosmosDBEndpoint"]
@@ -83,25 +79,25 @@ def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
 
 
 # Create the Azure Blob Loader
-def __create_blob_loader__(container_name: str, blob_name: str) -> AzStorageBlobReader:
-    account_url: str = f"https://{os.environ['StorageAccountName']}.blob.core.windows.net"
+def __create_blob_loader__(blob_client: BlobClient) -> AzStorageBlobReader:
 
-    try:
-        connection_string: str = os.environ["StorageAccountConnectionString"]
-    except KeyError:
-        connection_string = None
+    blob_properties = blob_client.get_blob_properties()
+    logging.info(f"Creating Azure Blob Loader for container {blob_properties.container} and blob {blob_properties.name}.")
 
-    if (connection_string == None):
-        credential = DefaultAzureCredential()
+    return AzStorageBlobReader(blob_client=blob_client)
 
-    logging.info(f"Creating Azure Blob Loader for container {container_name} and blob {blob_name}.")
+def __create_llm__() -> AzureOpenAI:
+    model_name: str = os.environ["OpenAIModelName"]
+    api_key: str = os.environ["OpenAIAPIKey"]
+    endpoint: str = os.environ["OpenAIEndpoint"]
+    api_version: str = os.environ["OpenAIAPIVersion"]
 
-    return AzStorageBlobReader(
-        container_name=container_name,
-        blob=blob_name,
-        account_url=account_url,
-        credential=credential,
-        connection_string=connection_string
+    return AzureOpenAI(
+        model=model_name,
+        deployment_name=model_name,
+        api_key=api_key,
+        azure_endpoint=endpoint,
+        api_version=api_version
     )
 
 # Create the Azure OpenAI Embedding Model

@@ -5,7 +5,7 @@ static
 .azure/
 __pycache__/
 .ipynb_checkpoints/
-# Azureite files
+# Azurite files
 __azurite*.json
 __blobstorage__/
 __queuestorage__/
