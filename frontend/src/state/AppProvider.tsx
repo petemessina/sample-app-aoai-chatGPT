@@ -30,6 +30,7 @@ export interface AppState {
   isCosmosDBAvailable: CosmosDBHealth
   chatHistory: Conversation[] | null
   uploadedDocuments: UploadedDocument[] | null
+  pendingDocuments: UploadedDocument[] | null
   filteredChatHistory: Conversation[] | null
   currentChat: Conversation | null
   frontendSettings: FrontendSettings | null
@@ -47,6 +48,8 @@ export type Action =
   | { type: 'UPDATE_CURRENT_CHAT'; payload: Conversation | null }
   | { type: 'UPDATE_FILTERED_CHAT_HISTORY'; payload: Conversation[] | null }
   | { type: 'UPDATE_CHAT_HISTORY'; payload: Conversation }
+  | { type: 'UPDATE_UPLOADED_DOCUMENTS'; payload: UploadedDocument }
+  | { type: 'UPDATE_PENDING_DOCUMENTS'; payload: Array<UploadedDocument> }
   | { type: 'UPDATE_CURRENT_CHAT_AND_HISTORY'; payload: Conversation }
   | { type: 'UPDATE_CHAT_TITLE'; payload: Conversation }
   | { type: 'DELETE_CHAT_ENTRY'; payload: string }
@@ -70,6 +73,7 @@ const initialState: AppState = {
   uploadedDocumentsLoadingState: UploadedDocumentLoadingState.Loading,
   chatHistory: null,
   uploadedDocuments: null,
+  pendingDocuments: [],
   filteredChatHistory: null,
   currentChat: null,
   isCosmosDBAvailable: {

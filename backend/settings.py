@@ -77,7 +77,8 @@ class _DocumentUploadSettings(BaseSettings):
     database: str
     account: str
     account_key: Optional[str] = None
-    documents_container: str
+    document_chunks_container: str
+    document_status_container: str
     enable_feedback: bool = False
 
 class _StorageAccountSettings(BaseSettings):

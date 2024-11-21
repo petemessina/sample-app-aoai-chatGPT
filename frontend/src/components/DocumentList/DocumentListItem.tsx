@@ -43,13 +43,13 @@ export const DocumentListItem: React.FC<Props> = ({ item, isSelected, onSelect }
     }, [textFieldFocused])
   
     const onDelete = async () => {
-        const response = await documentDelete(item.blobId)
+        const response = await documentDelete(item.id)
 
         if (!response.ok) {
           setErrorDelete(true)
           setTimeout(() => { setErrorDelete(false) }, 5000)
         } else {
-          appStateContext?.dispatch({ type: 'DELETE_UPLOADED_DOCUMENT', payload: item.blobId })
+          appStateContext?.dispatch({ type: 'DELETE_UPLOADED_DOCUMENT', payload: item.id })
         }
 
         toggleDeleteDialog()
@@ -57,12 +57,12 @@ export const DocumentListItem: React.FC<Props> = ({ item, isSelected, onSelect }
       
     return (
       <Stack
-        key={item.blobId}
+        key={item.id}
         tabIndex={0}
         aria-label="uploaded document item"
         className={styles.itemCell}
         verticalAlign="center"
-        onClick={() => onSelect(item.blobId, !isSelected)}
+        onClick={() => onSelect(item.id, !isSelected)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         styles={{
@@ -71,8 +71,11 @@ export const DocumentListItem: React.FC<Props> = ({ item, isSelected, onSelect }
           }
         }}>
             <Stack horizontal verticalAlign={'center'} style={{ width: '100%' }}>
-                <Checkbox checked={isSelected} onChange={(e, checked) => onSelect(item.blobId, checked || false)} />
-                <span>{item.fileName}</span>
+                <Checkbox checked={isSelected} onChange={(e, checked) => onSelect(item.id, checked || false)} />
+                <div className={styles.fileDetail}>
+                  <h6>{item.fileName}</h6>
+                  <p><span>Status: {item.status}</span></p>
+                </div>
                 {(isSelected || isHovered) && (
                     <Stack horizontal horizontalAlign="end">
                         <IconButton

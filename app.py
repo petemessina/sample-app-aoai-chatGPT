@@ -18,7 +18,7 @@ from quart import (
 )
 
 from openai import AsyncAzureOpenAI
-from azure.identity.aio import (
+from azure.identity import (
     DefaultAzureCredential,
     get_bearer_token_provider
 )
@@ -38,6 +38,11 @@ from backend.utils import (
     format_pf_non_streaming_response,
 )
 
+from backend.context.document_status_context import DocumentStatusContext
+from backend.context.document_chunk_context import DocumentChunkContext
+from backend.routes.document_status_routes import DocumentStatusRoutes
+from backend.routes.document_chunk_routes import DocumentChunkRoutes
+
 bp = Blueprint("routes", __name__, static_folder="static", template_folder="static")
 
 cosmos_db_ready = asyncio.Event()
@@ -51,12 +56,44 @@ def create_app():
     @app.before_serving
     async def init():
         try:
+            if not app_settings.chat_history.account_key:
+                cosmos_credential = DefaultAzureCredential()
+            else:
+                cosmos_credential = app_settings.chat_history.account_key
+
+            account_name = app_settings.storage_account.account_name
+            account_key = app_settings.storage_account.account_key
+            container_name = app_settings.storage_account.container_name
+
+            account_url = f"https://{account_name}.blob.core.windows.net"
+            cosmos_endpoint = (
+                f"https://{app_settings.chat_history.account}.documents.azure.com:443/"
+            )
+
+            if not account_key:
+                storage_credentials = DefaultAzureCredential()
+            else:
+                storage_credentials = account_key
+
+            blob_service_client = BlobServiceClient(account_url=account_url, credential=storage_credentials)
+            container_client = blob_service_client.get_container_client(container_name)
+            
+            document_chunk_context: DocumentChunkContext = DocumentChunkContext(cosmos_endpoint, cosmos_credential, app_settings.chat_history.database, app_settings.document_upload.document_chunks_container)
+            document_status_context: DocumentStatusContext = DocumentStatusContext(cosmos_endpoint, cosmos_credential, app_settings.chat_history.database, app_settings.document_upload.document_status_container, document_chunk_context)
+            document_status_routes = DocumentStatusRoutes(document_status_context)
+            document_chunk_routes = DocumentChunkRoutes(container_client, document_chunk_context, document_status_context)
+
             app.cosmos_client = await init_cosmosdb_client(
+                document_status_context=document_status_context,
                 database_name=app_settings.chat_history.database,
                 chat_container_name=app_settings.chat_history.conversations_container,
-                document_container_name=app_settings.document_upload.documents_container
+                document_chunks_container_name=app_settings.document_upload.document_chunks_container,
+                document_status_container_name=app_settings.document_upload.document_status_container
             )
-            
+
+            app.document_chunk_context = document_chunk_context
+            app.register_blueprint(document_status_routes.blueprint)
+            app.register_blueprint(document_chunk_routes.blueprint)
             cosmos_db_ready.set()
         except Exception as e:
             logging.exception("Failed to initialize CosmosDB client")
@@ -154,11 +191,10 @@ async def init_openai_client():
         ad_token_provider = None
         if not aoai_api_key:
             logging.debug("No AZURE_OPENAI_KEY found, using Azure Entra ID auth")
-            async with DefaultAzureCredential() as credential:
-                ad_token_provider = get_bearer_token_provider(
-                    credential,
-                    "https://cognitiveservices.azure.com/.default"
-                )
+            ad_token_provider = get_bearer_token_provider(
+                DefaultAzureCredential(),
+                "https://cognitiveservices.azure.com/.default"
+            )
 
         # Deployment
         deployment = app_settings.azure_openai.model
@@ -182,11 +218,11 @@ async def init_openai_client():
         azure_openai_client = None
         raise e
 
-async def search_cosmos_documents(openAIclient: AsyncAzureOpenAI, user_id: str, ragDocumentIds: list[str], text: str):
+async def search_cosmos_documents(openAIclient: AsyncAzureOpenAI, user_id: str, ragMasterDocumentIds: list[str], text: str):
     
     try:
         embeddings = await create_embedding(openAIclient, text)
-        documents = await current_app.cosmos_client.get_documents(user_id, ragDocumentIds, embeddings)
+        documents = await current_app.document_chunk_context.get_documents_by_master_ids(user_id, ragMasterDocumentIds, embeddings)
         return documents
 
     except Exception as e:
@@ -204,7 +240,7 @@ async def create_embedding(client: AsyncAzureOpenAI, text: str):
     return embedding
 
    
-async def init_cosmosdb_client(database_name: str, chat_container_name: str, document_container_name: str):
+async def init_cosmosdb_client(document_status_context: DocumentStatusContext, database_name: str, chat_container_name: str, document_chunks_container_name: str, document_status_container_name: str):
     cosmos_client = None
     if app_settings.chat_history:
         try:
@@ -213,18 +249,18 @@ async def init_cosmosdb_client(database_name: str, chat_container_name: str, doc
             )
 
             if not app_settings.chat_history.account_key:
-                async with DefaultAzureCredential() as cred:
-                    credential = cred
-                    
+                credential = DefaultAzureCredential()    
             else:
                 credential = app_settings.chat_history.account_key
 
             cosmos_client = CosmosConversationClient(
+                document_status_context,
                 cosmosdb_endpoint=cosmos_endpoint,
                 credential=credential,
                 database_name=database_name,
                 chat_container_name=chat_container_name,
-                document_container_name=document_container_name,
+                document_chunks_container_name=document_chunks_container_name,
+                document_status_container_name=document_status_container_name,
                 enable_message_feedback=app_settings.chat_history.enable_feedback,
             )
         except Exception as e:
@@ -378,7 +414,7 @@ async def promptflow_request(request):
 async def send_chat_request(request_body, request_headers):
     filtered_messages = []
     messages = request_body.get("messages", [])
-    rag_document_ids = request_body.get("ragDocumentIds", [])
+    rag_document_ids = request_body.get("ragMasterDocumentIds", [])
     authenticated_user = get_authenticated_user_details(request_headers=request.headers)
     user_id = authenticated_user["user_principal_id"]
 
@@ -916,103 +952,6 @@ async def ensure_cosmos():
         else:
             return jsonify({"error": "CosmosDB is not working"}), 500
 
-@bp.route('/upload', methods=['POST'])
-async def upload_file():
-    data = await request.files
-    form = await request.form
-    conversationId = form.get('conversationId')
-
-    if not conversationId:
-        return jsonify({'error': 'conversationId is required'}), 400
-    
-    if 'file' not in data:
-        return jsonify({'error': 'No file part'}), 400
-    
-    file = data['file']
-
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'})
-    
-    if file:
-        authenticated_user = get_authenticated_user_details(request_headers=request.headers)
-        user_principal_id = authenticated_user["user_principal_id"]
-        user_name = authenticated_user["user_name"]
-        account_name = app_settings.storage_account.account_name
-        account_key = app_settings.storage_account.account_key
-        container_name = app_settings.storage_account.container_name
-
-        account_url = f"https://{account_name}.blob.core.windows.net"
-        
-        if not account_key:
-            async with DefaultAzureCredential() as cred:
-                credential = cred
-        else:
-            credential = account_key
-
-        blob_service_client = BlobServiceClient(account_url=account_url, credential=credential)
-        container_client = blob_service_client.get_container_client(container_name)
-
-        metadata = {
-            'author': user_name,
-            'user_principal_id': user_principal_id,
-            'conversation_id': conversationId,
-            'blob_id': str(uuid.uuid4())
-        }
-
-        try:
-            blob_client = container_client.get_blob_client(f"{conversationId}/{file.filename}")
-            await blob_client.upload_blob(file, metadata=metadata, overwrite=True)
-            return jsonify({'message': 'File uploaded successfully', 'isUploaded': True}), 200
-        except Exception as e:
-            return jsonify({'message': str(e), 'isUploaded': False}), 500
-
-@bp.route('/document/delete', methods=["DELETE"])
-async def delete_document():
-    await cosmos_db_ready.wait()
-    offset = request.args.get("offset", 0)
-    authenticated_user = get_authenticated_user_details(request_headers=request.headers)
-    request_json = await request.get_json()
-
-    user_id = authenticated_user["user_principal_id"]
-    blob_id = request_json.get("blob_id", None)
-
-    if not blob_id:
-        return jsonify({"error": "blob_id is required"}), 400
-    
-    ## make sure cosmos is configured
-    if not current_app.cosmos_client:
-        raise Exception("CosmosDB is not configured or not working")
-
-    ## get the documents from cosmos
-    documents = await current_app.cosmos_client.delete_document(
-        user_id, blob_id
-    )
-    if not isinstance(documents, list):
-        return jsonify({"error": f"No documents was deleted"}), 404
-
-    ## return the documents
-    return jsonify(documents), 200
-
-@bp.route("/documents/list", methods=["GET"])
-async def list_uploaded_documents():
-    await cosmos_db_ready.wait()
-    offset = request.args.get("offset", 0)
-    authenticated_user = get_authenticated_user_details(request_headers=request.headers)
-    user_id = authenticated_user["user_principal_id"]
-
-    ## make sure cosmos is configured
-    if not current_app.cosmos_client:
-        raise Exception("CosmosDB is not configured or not working")
-
-    ## get the documents from cosmos
-    documents = await current_app.cosmos_client.get_uploaded_documents(
-        user_id, offset=offset, limit=25
-    )
-    if not isinstance(documents, list):
-        return jsonify({"error": f"No documents are uploaded for {user_id}"}), 404
-
-    ## return the documents
-    return jsonify(documents), 200
 
 async def generate_conversation_placeholder(request):
     authenticated_user = get_authenticated_user_details(request_headers=request.headers)

@@ -3,12 +3,12 @@ import azure.functions as func
 import logging
 from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
-from llama_index.vector_stores.azurecosmosnosql import AzureCosmosDBNoSqlVectorSearch
-from azure.cosmos import CosmosClient, PartitionKey
+from azure.cosmos import CosmosClient, ContainerProxy, PartitionKey
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobClient
 
 from AzStorageBlobReader import AzStorageBlobReader
+from AzureCosmosDBNoSqlVectorSearch import AzureCosmosDBNoSqlVectorSearch
 from llama_index_service import LlamaIndexService
 
 app = func.FunctionApp()
@@ -20,7 +20,6 @@ def blob_trigger(indexBlob: func.InputStream):
     llama_index_service: LlamaIndexService = LlamaIndexService()
     blob_name: str = indexBlob.name.split("/")[-1]
     container_name = ''.join(indexBlob.name.rsplit('/', 1)[:-1])
-
     vector_store = __create_vector_store__()
     llm = __create_llm__()
     embed_model = __create_embedding_model__()

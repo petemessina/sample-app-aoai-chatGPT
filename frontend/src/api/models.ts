@@ -62,9 +62,10 @@ export type Conversation = {
 }
 
 export type UploadedDocument = {
-  blobId: string,
+  id: string,
   fileName: string,
   conversationId: string
+  status: DocumentStatusState
 }
 
 export enum ChatCompletionType {
@@ -92,7 +93,7 @@ export type ChatResponse = {
 
 export type ConversationRequest = {
   messages: ChatMessage[],
-  ragDocumentIds: string[]
+  ragMasterDocumentIds: string[]
 }
 
 export type UserInfo = {
@@ -130,6 +131,14 @@ export enum UploadedDocumentLoadingState {
   Success = 'success',
   Fail = 'fail',
   NotStarted = 'notStarted'
+}
+
+export enum DocumentStatusState {
+  Indexed = 'Indexed',
+  Indexing = 'Indexing',
+  Uploading = 'Uploading',
+  Uploaded = 'Uploaded',
+  Failed = 'Failed'
 }
 
 export type ErrorMessage = {
