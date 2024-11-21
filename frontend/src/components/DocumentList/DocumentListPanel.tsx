@@ -15,6 +15,7 @@ import useDocumentStatusPoller from './useDocumentStatusPoller'
 import { UploadedDocument, uploadedDocumentList, UploadedDocumentLoadingState } from '../../api'
 import { AppStateContext } from '../../state/AppProvider'
 import styles from './DocumentListPanel.module.css'
+import { set } from 'lodash'
 
 interface Props {
   conversationId?: string;
@@ -37,10 +38,12 @@ const commandBarStyle: ICommandBarStyles = {
 export const DocumentListPanel: React.FC<Props> = ({conversationId, handleSelectedUploadDocument}) => {
   const appStateContext = useContext(AppStateContext)
   const [offset, setOffset] = useState<number>(25)
+  const [maxPollingCount, setPollingCount] = useState<number>(10)
   const [observerCounter, setObserverCounter] = useState(0)
   const [filteredUploadedDocuments, setFilteredUploadedDocuments] = useState<UploadedDocument[]>([])
   const [selectedUploadedDocuments, setSelectedUploadedDocuments] = useState<string[]>([]);
-  const { documentStatuses } = useDocumentStatusPoller(appStateContext?.state.pendingDocuments ?? [], 5000)
+  const [pendingDocumentStatuses, setPendingDocumentStatuses] = useState<Array<UploadedDocument>>([])
+  const { documentStatuses } = useDocumentStatusPoller(pendingDocumentStatuses, 5000, maxPollingCount)
 
   const observerTarget = useRef(null)
   const firstRender = useRef(true)
@@ -60,8 +63,28 @@ export const DocumentListPanel: React.FC<Props> = ({conversationId, handleSelect
   }, [observerCounter])
 
   useEffect(() => {
-    appStateContext?.dispatch({ type: 'UPDATE_PENDING_DOCUMENTS', payload: documentStatuses })
+    const filteredItems = documentStatuses.filter(status => status.pollingCount < maxPollingCount);
+    const changedStatusItems = documentStatuses.filter(filteredItem => {
+      const docItem = pendingDocumentStatuses.find(d => d.id === filteredItem.id);
+      return docItem && docItem.status !== filteredItem.status;
+    });
+    
+
+    setPendingDocumentStatuses(filteredItems)
+
+    if(changedStatusItems && changedStatusItems.length > 0)
+    {
+      appStateContext?.dispatch({ type: 'UPDATE_PENDING_DOCUMENTS', payload: changedStatusItems })
+    }
   }, [documentStatuses])
+
+  useEffect(() => {
+    const missingPendingItems = appStateContext?.state.pendingDocuments?.filter(filteredItem => {
+      return !pendingDocumentStatuses.some(d => d.id === filteredItem.id);
+    }) ?? [];
+
+    setPendingDocumentStatuses(prev => [...prev, ...missingPendingItems.map(item => ({...item, pollingCount: 0}))]);
+  }, [appStateContext?.state.pendingDocuments]);
 
   useEffect(() => {
     if(appStateContext && appStateContext.state.uploadedDocuments && appStateContext.state.currentChat) {

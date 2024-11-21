@@ -65,7 +65,7 @@ export const appStateReducer = (state: AppState, action: Action): AppState => {
         const pendingDocumentIndex = currentPendingDocuments.findIndex(conv => conv.id === document.id);
         const uploadedDocumentIndex = currentUploadedDocuments.findIndex(conv => conv.id === document.id);
     
-        if (pendingDocumentIndex !== -1 && (document.status === DocumentStatusState.Indexed || document.status === DocumentStatusState.Failed)) {
+        if (pendingDocumentIndex !== -1 && (document.status === DocumentStatusState.Indexed || document.status === DocumentStatusState.Failed || document.status === DocumentStatusState.PollingTimeout)) {
           currentPendingDocuments.splice(pendingDocumentIndex, 1);
         } else {
           if (pendingDocumentIndex !== -1) {

@@ -17,23 +17,26 @@ app = func.FunctionApp()
 def blob_trigger(indexBlob: func.InputStream):
     logging.info(f"Indexing blob: {indexBlob.name}")
     
-    llama_index_service: LlamaIndexService = LlamaIndexService()
-    blob_name: str = indexBlob.name.split("/")[-1]
-    container_name = ''.join(indexBlob.name.rsplit('/', 1)[:-1])
-    vector_store = __create_vector_store__()
-    llm = __create_llm__()
-    embed_model = __create_embedding_model__()
-    blob_client = __create_blob_client__(container_name, blob_name)
-    blob_loader = __create_blob_loader__(blob_client)
+    try:
+        llama_index_service: LlamaIndexService = LlamaIndexService()
+        blob_name: str = indexBlob.name.split("/")[-1]
+        container_name = ''.join(indexBlob.name.rsplit('/', 1)[:-1])
+        vector_store = __create_vector_store__()
+        llm = __create_llm__()
+        embed_model = __create_embedding_model__()
+        blob_client = __create_blob_client__(container_name, blob_name)
+        blob_loader = __create_blob_loader__(blob_client)
 
-    llama_index_service.index_documents(
-        llm,
-        vector_store,
-        embed_model,
-        blob_loader
-    )
+        llama_index_service.index_documents(
+            llm,
+            vector_store,
+            embed_model,
+            blob_loader
+        )
 
-    blob_client.delete_blob()
+        blob_client.delete_blob()
+    except Exception as e:
+        logging.error(f"Error indexing blob: {e}")
 
 
 def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
