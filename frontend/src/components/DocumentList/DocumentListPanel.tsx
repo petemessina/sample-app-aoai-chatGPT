@@ -15,7 +15,6 @@ import useDocumentStatusPoller from './useDocumentStatusPoller'
 import { UploadedDocument, uploadedDocumentList, UploadedDocumentLoadingState } from '../../api'
 import { AppStateContext } from '../../state/AppProvider'
 import styles from './DocumentListPanel.module.css'
-import { set } from 'lodash'
 
 interface Props {
   conversationId?: string;
