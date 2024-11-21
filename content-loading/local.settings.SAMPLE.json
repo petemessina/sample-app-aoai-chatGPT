@@ -20,7 +20,8 @@
   // See: https://github.com/Azure/azure-functions-host/issues/8019
     "DOCUMENT_STORAGE_ACCOUNT__blobServiceUri": "<storage account blob service uri>",
     "DOCUMENT_STORAGE_ACCOUNT__queueServiceUri": "<storage account queue service uri>",
-    "StorageAccountName": "<storage account name>"
+    "StorageAccountName": "<storage account name>",
+    "PIIEndpoint": "<cognitive services endpoint uri>"
   },
   "ConnectionStrings": {}
 }

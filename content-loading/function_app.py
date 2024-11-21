@@ -9,6 +9,7 @@ from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobClient
 
 from AzStorageBlobReader import AzStorageBlobReader
+from PIIServiceReaderFilter import PIIServiceReaderFilter
 from llama_index_service import LlamaIndexService
 
 app = func.FunctionApp()
@@ -25,13 +26,13 @@ def blob_trigger(indexBlob: func.InputStream):
     llm = __create_llm__()
     embed_model = __create_embedding_model__()
     blob_client = __create_blob_client__(container_name, blob_name)
-    blob_loader = __create_blob_loader__(blob_client)
+    loader = __create_composite_loader__(blob_client)
 
     llama_index_service.index_documents(
         llm,
         vector_store,
         embed_model,
-        blob_loader
+        loader
     )
 
     blob_client.delete_blob()
@@ -79,12 +80,15 @@ def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
 
 
 # Create the Azure Blob Loader
-def __create_blob_loader__(blob_client: BlobClient) -> AzStorageBlobReader:
+def __create_composite_loader__(blob_client: BlobClient) -> AzStorageBlobReader:
 
     blob_properties = blob_client.get_blob_properties()
     logging.info(f"Creating Azure Blob Loader for container {blob_properties.container} and blob {blob_properties.name}.")
 
-    return AzStorageBlobReader(blob_client=blob_client)
+    blob_reader = AzStorageBlobReader(blob_client=blob_client)
+    pii_filter = PIIServiceReaderFilter(reader=blob_reader)
+
+    return pii_filter
 
 def __create_llm__() -> AzureOpenAI:
     model_name: str = os.environ["OpenAIModelName"]
