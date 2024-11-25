@@ -138,7 +138,8 @@ export enum DocumentStatusState {
   Indexing = 'Indexing',
   Uploading = 'Uploading',
   Uploaded = 'Uploaded',
-  Failed = 'Failed'
+  Failed = 'Failed',
+  PollingTimeout = 'PollingTimeout'
 }
 
 export type ErrorMessage = {
