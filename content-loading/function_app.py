@@ -91,7 +91,25 @@ def __create_composite_loader__(blob_client: BlobClient) -> AzStorageBlobReader:
     logging.info(f"Creating Azure Blob Loader for container {blob_properties.container} and blob {blob_properties.name}.")
 
     blob_reader = AzStorageBlobReader(blob_client=blob_client)
-    pii_filter = PIIServiceReaderFilter(reader=blob_reader)
+
+    pii_endpoint = os.environ["PIIEndpoint"]
+    
+    try:
+        pii_categories = os.environ["PIICategories"].split(",")
+    except KeyError:
+        pii_categories = None
+
+    DEFAULT_MIN_CONFIDENCE = 0.8
+    try:
+        min_confidence = float(os.environ["PIIMinimumConfidence"])
+    except KeyError:
+        min_confidence = DEFAULT_MIN_CONFIDENCE
+
+    pii_filter = PIIServiceReaderFilter(
+        reader=blob_reader, 
+        endpoint=pii_endpoint,
+        pii_categories=pii_categories, 
+        min_confidence=min_confidence)
 
     return pii_filter
 

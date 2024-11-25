@@ -13,6 +13,8 @@ class PIIServiceReaderFilter(BasePydanticReader):
         min_confidence (float): The minimum confidence level for PII detection.
     """
     reader: BaseReader
+    endpoint: str
+    pii_categories: Optional[List[str]] = None
     min_confidence: float = 0.8
     
     def load_data(self) -> List[Document]:
@@ -37,10 +39,9 @@ class PIIServiceReaderFilter(BasePydanticReader):
             bool: True if the document contains PII, False otherwise.
         """
         credential = DefaultAzureCredential()
-        endpoint = os.environ["PIIEndpoint"]
 
-        client = TextAnalyticsClient(endpoint=endpoint, credential=credential)
-        response = client.recognize_pii_entities([document.text], language="en")
+        client = TextAnalyticsClient(endpoint=self.endpoint, credential=credential)
+        response = client.recognize_pii_entities([document.text], language="en", categories_filter=self.pii_categories)
         
         result = [doc for doc in response if not doc.is_error]
         detected_pii = []
