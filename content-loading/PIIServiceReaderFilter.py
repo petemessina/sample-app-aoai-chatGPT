@@ -1,5 +1,5 @@
 import os
-from azure.ai.textanalytics import TextAnalyticsClient
+from azure.ai.textanalytics import TextAnalyticsClient, PiiEntity
 from azure.identity import DefaultAzureCredential
 from typing import Any, Dict, List, Optional, Union
 from llama_index.core.schema import Document
@@ -23,10 +23,11 @@ class PIIServiceReaderFilter(BasePydanticReader):
         """
         documents = self.reader.load_data()
         for doc in documents:
-            if self.__contains_pii(doc):
-                raise ValueError(f"Document contains PII: {doc.text}")
+            detected_pii_entities = self.__detect_pii(doc)
+            if detected_pii_entities:
+                raise PIIDetectionError(detected_entities=detected_pii_entities, message=f"Document contains PII: {doc.text}")
 
-    def __contains_pii(self, document: Document) -> bool:
+    def __detect_pii(self, document: Document) -> List[PiiEntity]:
         """Check if a document contains PII.
 
         Args:
@@ -42,12 +43,20 @@ class PIIServiceReaderFilter(BasePydanticReader):
         response = client.recognize_pii_entities([document.text], language="en")
         
         result = [doc for doc in response if not doc.is_error]
+        detected_pii = []
         for doc in result:
             for entity in doc.entities:
                 if entity.confidence_score > self.min_confidence:
-                    return True
+                    detected_pii.append(entity)
 
-        return False
+        return detected_pii
+    
+class PIIDetectionError(Exception):
+    """Error raised when PII is detected in a document."""
+    
+    def __init__(self, detected_entities: List[PiiEntity], message: Optional[str] = None):
+        super().__init__(message)
+        self.detected_entities = detected_entities
 
 
 

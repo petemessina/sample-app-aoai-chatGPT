@@ -9,7 +9,7 @@ from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobClient
 
 from AzStorageBlobReader import AzStorageBlobReader
-from PIIServiceReaderFilter import PIIServiceReaderFilter
+from PIIServiceReaderFilter import PIIServiceReaderFilter, PIIDetectionError
 from llama_index_service import LlamaIndexService
 
 app = func.FunctionApp()
@@ -28,14 +28,19 @@ def blob_trigger(indexBlob: func.InputStream):
     blob_client = __create_blob_client__(container_name, blob_name)
     loader = __create_composite_loader__(blob_client)
 
-    llama_index_service.index_documents(
-        llm,
-        vector_store,
-        embed_model,
-        loader
-    )
-
-    blob_client.delete_blob()
+    try:
+        llama_index_service.index_documents(
+            llm,
+            vector_store,
+            embed_model,
+            loader
+        )
+    except PIIDetectionError as e:
+        for entity in e.detected_entities:
+            logging.error(f"PII Detected in document {blob_name}: {entity.category} with confidence {entity.confidence_score}")
+    finally:
+        blob_client.delete_blob()
+        blob_client.close()
 
 
 def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
