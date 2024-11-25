@@ -146,17 +146,17 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
   }
 }
 
-resource storageBlobDataContributorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+resource storageBlobDataContributorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = if (useManagedIdentityForStorage) {
   scope: subscription()
   name: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
 }
 
-resource storageBlobContributorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+resource storageBlobContributorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = if (useManagedIdentityForStorage) {
   scope: subscription()
   name: '17d1049b-9a84-46fb-8f53-869881c3d3ab'
 }
 
-resource storageQueueDataContributorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+resource storageQueueDataContributorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = if (useManagedIdentityForStorage) {
   scope: subscription()
   name: '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
 }
