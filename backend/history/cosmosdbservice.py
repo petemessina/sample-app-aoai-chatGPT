@@ -3,15 +3,28 @@ from typing import List
 from datetime import datetime
 from azure.cosmos.aio import CosmosClient
 from azure.cosmos import exceptions
-  
+from backend.context.document_status_context import DocumentStatusContext
+
 class CosmosConversationClient():
     
-    def __init__(self, cosmosdb_endpoint: str, credential: any, database_name: str, chat_container_name: str, document_container_name: str, enable_message_feedback: bool = False):
+    def __init__(self,
+        document_status_context: DocumentStatusContext,
+        cosmosdb_endpoint: str,
+        credential: any,
+        database_name: str,
+        chat_container_name: str,
+        document_chunks_container_name: str,
+        document_status_container_name: str,
+        enable_message_feedback: bool = False
+    ):
+        self.document_status_context = document_status_context
         self.cosmosdb_endpoint = cosmosdb_endpoint
         self.credential = credential
         self.database_name = database_name
         self.chat_container_name = chat_container_name
-        self.document_container_name = document_container_name
+        self.document_chunks_container_name = document_chunks_container_name
+        self.document_status_container_name = document_status_container_name
+
         self.enable_message_feedback = enable_message_feedback
         try:
             self.cosmosdb_client = CosmosClient(self.cosmosdb_endpoint, credential=credential)
@@ -72,7 +85,7 @@ class CosmosConversationClient():
         conversation = await chat_container_client.read_item(item=conversation_id, partition_key=user_id)        
         if conversation:
             resp = await chat_container_client.delete_item(item=conversation_id, partition_key=user_id)
-            await self.delete_document_by_conversation_id(user_id, conversation_id)           
+            await self.document_status_context.delete_document_by_conversation_id(user_id, conversation_id)           
 
             return resp
         else:
@@ -89,7 +102,7 @@ class CosmosConversationClient():
                 resp = await chat_container_client.delete_item(item=message['id'], partition_key=user_id)
                 response_list.append(resp)
 
-            await self.delete_document_by_conversation_id(user_id, conversation_id)
+            await self.document_status_context.delete_document_by_conversation_id(user_id, conversation_id)
             return response_list
 
 
@@ -191,74 +204,11 @@ class CosmosConversationClient():
 
         return messages
 
-    async def get_documents(self, user_id: str, ragDocumentIds: list[str], embeddings: list[float]):
-        documents = []
-        document_client = self.create_document_container_client()
-        query=f"""SELECT TOP 10 c.text, c.payload, VectorDistance(c.contentVector, @embedding) AS SimilarityScore FROM c WHERE c.metadata.blob_id IN ({', '.join(f"'{val}'" for val in ragDocumentIds)}) AND c.metadata.user_principal_id = @userId ORDER BY VectorDistance(c.contentVector, @embedding)"""
-
-        async for item in document_client.query_items(
-                query=query,
-                parameters=[
-                    {"name": "@userId", "value": user_id},
-                    {"name": "@embedding", "value": embeddings}
-                ]
-            ):
-            documents.append(item)
-
-        return documents
-
-    async def get_uploaded_documents(self, user_id, limit, offset = 0):
-        document_client = self.create_document_container_client()
-        query = f"SELECT DISTINCT c.metadata.blob_id, c.metadata.file_name, c.metadata.conversation_id FROM c WHERE c.metadata.user_principal_id = @userId"
-        if limit is not None:
-            query += f" offset {offset} limit {limit}" 
-        
-        documents = []
-        async for item in document_client.query_items(
-                query=query,
-                parameters=[{"name": "@userId", "value": user_id}]
-            ):
-            documents.append(item)
-        
-        return documents
     
-    async def delete_document(self, user_id, blob_id):
-        document_client = self.create_document_container_client()
-        query = "SELECT * FROM c WHERE c.metadata.blob_id = @blob_id AND c.metadata.user_principal_id = @userId"
-        response_list = []
-        documents = document_client.query_items(
-            query,
-            parameters=[
-                {"name": "@blob_id", "value": blob_id},
-                {"name": "@userId", "value": user_id}
-            ]
-        )
 
-        # Delete the items
-        async for document in documents:
-            response = await document_client.delete_item(item=document["id"], partition_key=user_id)
-            response_list.append(response)
-
-        return response_list
     
-    async def delete_document_by_conversation_id(self, user_id, conversation_id):
-        document_client = self.create_document_container_client()
-        query = "SELECT * FROM c WHERE c.metadata.conversation_id = @conversation_id AND c.metadata.user_principal_id = @userId"
-        response_list = []
-        documents = document_client.query_items(
-            query,
-            parameters=[
-                {"name": "@conversation_id", "value": conversation_id},
-                {"name": "@userId", "value": user_id}
-            ]
-        )
-
-        # Delete the items
-        async for document in documents:
-            response = await document_client.delete_item(item=document["id"], partition_key=user_id)
-            response_list.append(response)
-
-        return response_list
+    
+    
     
     def create_chat_container_client(self):
         try:
@@ -266,9 +216,15 @@ class CosmosConversationClient():
         except exceptions.CosmosResourceNotFoundError:
             raise ValueError("Invalid CosmosDB container name")
         
-    def create_document_container_client(self):
+    def create_document_chunk_container_client(self):
         try:
-            return self.database_client.get_container_client(self.document_container_name)
+            return self.database_client.get_container_client(self.document_chunks_container_name)
+        except exceptions.CosmosResourceNotFoundError:
+            raise ValueError("Invalid CosmosDB container name") 
+        
+    def create_document_status_container_client(self):
+        try:
+            return self.database_client.get_container_client(self.document_status_container_name)
         except exceptions.CosmosResourceNotFoundError:
             raise ValueError("Invalid CosmosDB container name") 
         

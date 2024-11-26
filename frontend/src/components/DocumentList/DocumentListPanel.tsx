@@ -1,26 +1,18 @@
 import React, { useContext, useEffect, useRef, useState } from 'react'
-import { useBoolean } from '@fluentui/react-hooks'
 import {
   CommandBarButton,
-  ContextualMenu,
-  DefaultButton,
-  Dialog,
-  DialogFooter,
-  DialogType,
   ICommandBarStyles,
-  IContextualMenuItem,
   IStackStyles,
-  PrimaryButton,
   Spinner,
   SpinnerSize,
   Stack,
   StackItem,
   Text,
-  Checkbox
 } from '@fluentui/react'
 
 import { DocumentListItem } from './DocumentListItem'
-import { historyDeleteAll, uploadedDocumentList, UploadedDocumentLoadingState } from '../../api'
+import useDocumentStatusPoller from './useDocumentStatusPoller'
+import { UploadedDocument, uploadedDocumentList, UploadedDocumentLoadingState } from '../../api'
 import { AppStateContext } from '../../state/AppProvider'
 import styles from './DocumentListPanel.module.css'
 
@@ -44,64 +36,19 @@ const commandBarStyle: ICommandBarStyles = {
 
 export const DocumentListPanel: React.FC<Props> = ({conversationId, handleSelectedUploadDocument}) => {
   const appStateContext = useContext(AppStateContext)
-  const [showContextualMenu, setShowContextualMenu] = React.useState(false)
-  const [hideClearAllDialog, { toggle: toggleClearAllDialog }] = useBoolean(true)
-  const [clearing, setClearing] = React.useState(false)
-  const [clearingError, setClearingError] = React.useState(false)
   const [offset, setOffset] = useState<number>(25)
+  const [maxPollingCount, setPollingCount] = useState<number>(10)
   const [observerCounter, setObserverCounter] = useState(0)
+  const [filteredUploadedDocuments, setFilteredUploadedDocuments] = useState<UploadedDocument[]>([])
   const [selectedUploadedDocuments, setSelectedUploadedDocuments] = useState<string[]>([]);
+  const [pendingDocumentStatuses, setPendingDocumentStatuses] = useState<Array<UploadedDocument>>([])
+  const { documentStatuses } = useDocumentStatusPoller(pendingDocumentStatuses, 5000, maxPollingCount)
+
   const observerTarget = useRef(null)
   const firstRender = useRef(true)
 
-  const clearAllDialogContentProps = {
-    type: DialogType.close,
-    title: !clearingError ? 'Are you sure you want to clear all uploaded documents?' : 'Error deleting all uploaded documents',
-    closeButtonAriaLabel: 'Close',
-    subText: !clearingError
-      ? 'All uploaded documents will be permanently removed.'
-      : 'Please try again. If the problem persists, please contact the site administrator.'
-  }
-
-  const modalProps = {
-    titleAriaId: 'labelId',
-    subtitleAriaId: 'subTextId',
-    isBlocking: true,
-    styles: { main: { maxWidth: 450 } }
-  }
-
-  const menuItems: IContextualMenuItem[] = [
-    { key: 'clearAll', text: 'Clear all uploaded documents', iconProps: { iconName: 'Delete' } }
-  ]
-
   const handleDocumentUploadClick = () => {
     appStateContext?.dispatch({ type: 'TOGGLE_DOCUMENT_LIST' })
-  }
-
-  const onShowContextualMenu = React.useCallback((ev: React.MouseEvent<HTMLElement>) => {
-    ev.preventDefault() // don't navigate
-    setShowContextualMenu(true)
-  }, [])
-
-  const onHideContextualMenu = React.useCallback(() => setShowContextualMenu(false), [])
-
-  const onClearAllChatHistory = async () => {
-    setClearing(true)
-    const response = await historyDeleteAll()
-    if (!response.ok) {
-      setClearingError(true)
-    } else {
-      appStateContext?.dispatch({ type: 'DELETE_CHAT_HISTORY' })
-      toggleClearAllDialog()
-    }
-    setClearing(false)
-  }
-
-  const onHideClearAllDialog = () => {
-    toggleClearAllDialog()
-    setTimeout(() => {
-      setClearingError(false)
-    }, 2000)
   }
 
   useEffect(() => {
@@ -113,6 +60,42 @@ export const DocumentListPanel: React.FC<Props> = ({conversationId, handleSelect
     handleFetchUploadedDocuments()
     setOffset(offset => (offset += 25))
   }, [observerCounter])
+
+  useEffect(() => {
+    const filteredItems = documentStatuses.filter(status => status.pollingCount < maxPollingCount);
+    const changedStatusItems = documentStatuses.filter(filteredItem => {
+      const docItem = pendingDocumentStatuses.find(d => d.id === filteredItem.id);
+      return docItem && docItem.status !== filteredItem.status;
+    });
+    
+
+    setPendingDocumentStatuses(filteredItems)
+
+    if(changedStatusItems && changedStatusItems.length > 0)
+    {
+      appStateContext?.dispatch({ type: 'UPDATE_PENDING_DOCUMENTS', payload: changedStatusItems })
+    }
+  }, [documentStatuses])
+
+  useEffect(() => {
+    const missingPendingItems = appStateContext?.state.pendingDocuments?.filter(filteredItem => {
+      return !pendingDocumentStatuses.some(d => d.id === filteredItem.id);
+    }) ?? [];
+
+    setPendingDocumentStatuses(prev => [...prev, ...missingPendingItems.map(item => ({...item, pollingCount: 0}))]);
+  }, [appStateContext?.state.pendingDocuments]);
+
+  useEffect(() => {
+    if(appStateContext && appStateContext.state.uploadedDocuments && appStateContext.state.currentChat) {
+      const filteredDocuments = appStateContext.state.uploadedDocuments.filter(document => document.conversationId === appStateContext?.state.currentChat?.id);
+
+      setSelectedUploadedDocuments([]);
+      setFilteredUploadedDocuments(filteredDocuments)
+    } else {
+      setSelectedUploadedDocuments([]);
+      setFilteredUploadedDocuments([])
+    }
+  }, [appStateContext?.state.currentChat, appStateContext?.state.uploadedDocuments])
 
   const handleFetchUploadedDocuments = async () => {
 
@@ -141,7 +124,7 @@ export const DocumentListPanel: React.FC<Props> = ({conversationId, handleSelect
   }, [observerTarget])
 
   const commandBarButtonStyle: Partial<IStackStyles> = { root: { height: '50px' } }
-  React.useEffect(() => {}, [appStateContext?.state.uploadedDocuments, clearingError])
+  React.useEffect(() => {}, [appStateContext?.state.uploadedDocuments])
   
   const onSelectUploadDocument = (itemId: string, isChecked: boolean) => {
     setSelectedUploadedDocuments(prev =>
@@ -171,22 +154,6 @@ export const DocumentListPanel: React.FC<Props> = ({conversationId, handleSelect
         <Stack verticalAlign="start">
           <Stack horizontal styles={commandBarButtonStyle}>
             <CommandBarButton
-              iconProps={{ iconName: 'More' }}
-              title={'Clear all documents'}
-              onClick={onShowContextualMenu}
-              aria-label={'clear all documents'}
-              styles={commandBarStyle}
-              role="button"
-              id="moreButton"
-            />
-            <ContextualMenu
-              items={menuItems}
-              hidden={!showContextualMenu}
-              target={'#moreButton'}
-              onItemClick={toggleClearAllDialog}
-              onDismiss={onHideContextualMenu}
-            />
-            <CommandBarButton
               iconProps={{ iconName: 'Cancel' }}
               title={'Hide'}
               onClick={handleDocumentUploadClick}
@@ -215,11 +182,11 @@ export const DocumentListPanel: React.FC<Props> = ({conversationId, handleSelect
           flexWrap: 'wrap',
           padding: '1px'
         }}>
-        <Stack className={styles.chatHistoryListContainer}>
+        <Stack className={styles.uploadedDocumentListContainer}>
           {appStateContext?.state.uploadedDocumentsLoadingState === UploadedDocumentLoadingState.Success &&
-            appStateContext?.state.isCosmosDBAvailable.cosmosDB && <div>{appStateContext?.state.uploadedDocuments?.map((item) => {
+            appStateContext?.state.isCosmosDBAvailable.cosmosDB && <div>{filteredUploadedDocuments.map((item) => {
               return (
-                <DocumentListItem item={item} isSelected={selectedUploadedDocuments.includes(item.blobId)} onSelect={onSelectUploadDocument} />
+                <DocumentListItem item={item} isSelected={selectedUploadedDocuments.includes(item.id)} onSelect={onSelectUploadDocument} />
               )}
             )}</div>}
           {appStateContext?.state.uploadedDocumentsLoadingState === UploadedDocumentLoadingState.Fail &&
@@ -264,20 +231,6 @@ export const DocumentListPanel: React.FC<Props> = ({conversationId, handleSelect
           )}
         </Stack>
       </Stack>
-      <Dialog
-        hidden={hideClearAllDialog}
-        onDismiss={clearing ? () => {} : onHideClearAllDialog}
-        dialogContentProps={clearAllDialogContentProps}
-        modalProps={modalProps}>
-        <DialogFooter>
-          {!clearingError && <PrimaryButton onClick={onClearAllChatHistory} disabled={clearing} text="Clear All" />}
-          <DefaultButton
-            onClick={onHideClearAllDialog}
-            disabled={clearing}
-            text={!clearingError ? 'Cancel' : 'Close'}
-          />
-        </DialogFooter>
-      </Dialog>
     </section>
   );
 }

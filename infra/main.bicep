@@ -59,6 +59,12 @@ param cosmosAccountName string = ''
 @description('Id of the user or app to assign application roles')
 param principalId string = ''
 
+//Used By Indexing
+param indexingCosmosChunkContainerName string = 'document_chunks'
+param indexingCosmosStatusContainerName string = 'document_status'
+param indexingOpenAIAPIVerions string = '2024-05-01-preview'
+param indexingStorageAccountUploadContainerName string = 'documents'
+
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
 var tags = { 'azd-env-name': environmentName }
@@ -284,6 +290,116 @@ module docPrepResources 'docprep.bicep' = {
     formRecognizerSkuName: !empty(formRecognizerSkuName) ? formRecognizerSkuName : 'S0'
   }
 }
+
+//For Indexing
+module applicationInsights 'core/application-insights/application-insights.bicep' = {
+  name: 'application-insights'
+  scope: resourceGroup
+  params: {
+    applicationInsightsName: 'appi-insights-${resourceToken}'
+    location: location
+  }
+}
+
+module functionStorage 'core/storage/storage-account.bicep' = {
+  name:'function-storage'
+  scope: resourceGroup
+  params:{
+    name:'stfnstorage${resourceToken}'
+  }
+}
+
+module documentStorage 'core/storage/storage-account.bicep' = {
+  name:'document-storage'
+  scope: resourceGroup
+  params:{
+    name:'stdocstorage${resourceToken}'
+  }
+}
+
+module indexingFunction 'core/indexing/function.bicep' = {
+  name: 'indexing-function'
+  scope: resourceGroup
+  params: {
+    name: 'indexing-function-${resourceToken}'
+    location: location
+    storageAccountName: functionStorage.outputs.name
+    applicationInsightsName: applicationInsights.outputs.name
+    hostingPlanSkuName: 'EP1'
+    hostingPlanSkuTier: 'Premium'
+    runtime:'Python'
+    runtimeVersion:'3.11'
+    additionalAppSettings: [
+      {
+        name: 'CosmosDBContainer'
+        value: indexingCosmosChunkContainerName
+      }
+      {
+        name: 'CosmosDBDatabase'
+        value: cosmos.outputs.databaseName
+      }
+      {
+        name: 'CosmosDBDocumentStatusContainer'
+        value: indexingCosmosStatusContainerName
+      }
+      {
+        name: 'CosmosDBEndpoint'
+        value: cosmos.outputs.endpoint
+      }
+      {
+        name: 'DOCUMENT_STORAGE_ACCOUNT__blobServiceUri'
+        value: 'https://${documentStorage.outputs.name}.blob.core.windows.net'
+      }
+      {
+        name: 'DOCUMENT_STORAGE_ACCOUNT__queueServiceUri'
+        value: 'https://${documentStorage.outputs.name}.queue.core.windows.net'
+      }
+      {
+        name: 'DOCUMENT_STORAGE_ACCOUNT__tableServiceUri'
+        value: 'https://${documentStorage.outputs.name}.table.core.windows.net'
+      }
+      {
+        name: 'OpenAIAPIKey'
+        value: openAi.outputs.key
+      }
+      {
+        name: 'OpenAIAPIVersion'
+        value: indexingOpenAIAPIVerions
+      }
+      {
+        name: 'OpenAIEmbeddingModelName'
+        value: embeddingDeploymentName
+      }
+      {
+        name: 'OpenAIEndpoint'
+        value: openAi.outputs.endpoint
+      }
+      {
+        name: 'OpenAIModelName'
+        value: openAIModel
+      }
+      {
+        name: 'StorageAccountContainerName'
+        value: indexingStorageAccountUploadContainerName
+      }
+      {
+        name: 'StorageAccountName'
+        value: documentStorage.outputs.name
+      }
+    ]
+  }
+}
+
+module documentTrigger 'core/indexing/document-trigger-security.bicep' = {
+  name: 'document-trigger'
+  scope: resourceGroup
+  params: {
+    functionAppId: indexingFunction.outputs.id
+    functionAppName: indexingFunction.outputs.name
+    functionAppPricipalId: indexingFunction.outputs.principalId
+  }
+}
+
 output AZURE_LOCATION string = location
 output AZURE_TENANT_ID string = tenant().tenantId
 output AZURE_RESOURCE_GROUP string = resourceGroup.name

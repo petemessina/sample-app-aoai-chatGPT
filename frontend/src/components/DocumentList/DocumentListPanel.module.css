@@ -49,6 +49,26 @@
   height: 50px;
 }
 
+.fileDetail {
+  flex: 1;
+  margin-left: 5px
+}
+
+.fileDetail h6 {
+  word-break: break-all;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+  margin: 0;
+}
+
+.fileDetail p {
+  font-size: 12px;
+  line-height: initial;
+  font-weight: 400;
+  margin: 2px 0;
+}
+
 @media (max-width: 480px) {
   .container {
     width: 100%;

@@ -1,3 +1,4 @@
+import { DocumentStatusState } from '../api'
 import { Action, AppState } from './AppProvider'
 
 // Define the reducer function
@@ -31,11 +32,58 @@ export const appStateReducer = (state: AppState, action: Action): AppState => {
       }
 
       const existingChatIndex = state.chatHistory.findIndex(conv => conv.id === action.payload.id)
+
       if (existingChatIndex !== -1) {
         return state;
       }
       
       return { ...state, currentChat: action.payload, chatHistory: [...state.chatHistory, action.payload] }
+    case 'UPDATE_UPLOADED_DOCUMENTS':
+      if (!state.uploadedDocuments) {
+        return state
+      }
+
+      const uploadedDocumentIndex = state.uploadedDocuments.findIndex(conv => conv.id === action.payload.id)
+      
+      if (uploadedDocumentIndex !== -1) {
+        const updatedChatHistory = [...state.uploadedDocuments]
+        updatedChatHistory[uploadedDocumentIndex] = action.payload
+
+        return { ...state, uploadedDocuments: updatedChatHistory }
+      } else {
+        return { ...state, uploadedDocuments: [...state.uploadedDocuments, action.payload] }
+      }
+    case 'UPDATE_PENDING_DOCUMENTS':
+      if (!state.pendingDocuments || !state.uploadedDocuments) {
+        return state;
+      }
+    
+      const currentPendingDocuments = [...state.pendingDocuments];
+      const currentUploadedDocuments = [...state.uploadedDocuments];
+    
+      action.payload.forEach(document => {
+        const pendingDocumentIndex = currentPendingDocuments.findIndex(conv => conv.id === document.id);
+        const uploadedDocumentIndex = currentUploadedDocuments.findIndex(conv => conv.id === document.id);
+    
+        if (pendingDocumentIndex !== -1 && (document.status === DocumentStatusState.Indexed || document.status === DocumentStatusState.Failed || document.status === DocumentStatusState.PollingTimeout)) {
+          currentPendingDocuments.splice(pendingDocumentIndex, 1);
+        } else {
+          if (pendingDocumentIndex !== -1) {
+            currentPendingDocuments[pendingDocumentIndex] = document;
+          } else {
+            currentPendingDocuments.push(document);
+          }
+        }
+
+        if (uploadedDocumentIndex !== -1) {
+          currentUploadedDocuments[uploadedDocumentIndex] = document;
+        } else {
+          currentUploadedDocuments.push(document);
+        }
+      });
+    
+      return { ...state, pendingDocuments: currentPendingDocuments, uploadedDocuments: currentUploadedDocuments };
+
     case 'UPDATE_CHAT_TITLE':
       if (!state.chatHistory) {
         return { ...state, chatHistory: [] }
@@ -59,7 +107,7 @@ export const appStateReducer = (state: AppState, action: Action): AppState => {
       if(!state.uploadedDocuments) {
         return { ...state, uploadedDocuments: [] }
       }
-      
+
       const filteredChat = state.chatHistory.filter(chat => chat.id !== action.payload)
       const filteredDocuments = state.uploadedDocuments.filter(document => document.conversationId !== action.payload)
 
@@ -70,7 +118,7 @@ export const appStateReducer = (state: AppState, action: Action): AppState => {
         if (!state.uploadedDocuments) {
           return { ...state, uploadedDocuments: [] }
         }
-        const filteredUploadedDocuments = state.uploadedDocuments.filter(document => document.blobId !== action.payload)
+        const filteredUploadedDocuments = state.uploadedDocuments.filter(document => document.id !== action.payload)
         return { ...state, uploadedDocuments: filteredUploadedDocuments }
     case 'DELETE_CHAT_HISTORY':
       //TODO: make api call to delete all conversations from DB

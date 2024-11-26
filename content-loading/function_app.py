@@ -3,12 +3,12 @@ import azure.functions as func
 import logging
 from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
-from llama_index.vector_stores.azurecosmosnosql import AzureCosmosDBNoSqlVectorSearch
-from azure.cosmos import CosmosClient, PartitionKey
+from azure.cosmos import CosmosClient, ContainerProxy, PartitionKey
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobClient
 
 from AzStorageBlobReader import AzStorageBlobReader
+from AzureCosmosDBNoSqlVectorSearch import AzureCosmosDBNoSqlVectorSearch
 from PIIServiceReaderFilter import PIIServiceReaderFilter, PIIDetectionError
 from llama_index_service import LlamaIndexService
 
@@ -18,31 +18,33 @@ app = func.FunctionApp()
 def blob_trigger(indexBlob: func.InputStream):
     logging.info(f"Indexing blob: {indexBlob.name}")
     
-    llama_index_service: LlamaIndexService = LlamaIndexService()
-    blob_name: str = indexBlob.name.split("/")[-1]
-    container_name = ''.join(indexBlob.name.rsplit('/', 1)[:-1])
-
-    vector_store = __create_vector_store__()
-    llm = __create_llm__()
-    embed_model = __create_embedding_model__()
-    blob_client = __create_blob_client__(container_name, blob_name)
-    loader = __create_composite_loader__(blob_client)
-
     try:
+        llama_index_service: LlamaIndexService = LlamaIndexService()
+        blob_name: str = indexBlob.name.split("/")[-1]
+        container_name = ''.join(indexBlob.name.rsplit('/', 1)[:-1])
+        vector_store = __create_vector_store__()
+        llm = __create_llm__()
+        embed_model = __create_embedding_model__()
+        blob_client = __create_blob_client__(container_name, blob_name)
+        loader = __create_composite_loader__(blob_client)
+
         llama_index_service.index_documents(
             llm,
             vector_store,
             embed_model,
             loader
         )
+        
     except PIIDetectionError as e:
         for entity in e.detected_entities:
             logging.error(f"PII Detected in document {blob_name}: {entity.category} with confidence {entity.confidence_score}")
+    except Exception as e:
+        logging.error(f"Exception type:{type(e)}")
+        logging.error(f"Error indexing blob: {e}")
     finally:
         blob_client.delete_blob()
         blob_client.close()
-
-
+    
 def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
     endpoint = os.environ["CosmosDBEndpoint"]
     database_name = os.environ["CosmosDBDatabase"]

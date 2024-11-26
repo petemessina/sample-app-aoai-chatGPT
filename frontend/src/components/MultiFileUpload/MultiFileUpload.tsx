@@ -3,13 +3,13 @@ import { Stack, PrimaryButton, FontIcon, MessageBar, MessageBarType, TextField }
 import { CustomModal } from '../CustomModal'
 import { Card } from '../Card'
 import styles from './MultiFileUpload.module.css'
-import { uploadFile, generateConversationbPlaceholder } from '../../api'
+import { uploadFile, generateConversationPlaceholder, DocumentStatusState } from '../../api'
 import { AppStateContext } from "../../state/AppProvider";
 
 enum FileUploadStatus {
   WaitingToBeIndexed = "waiting to be indexed",
   Uploading = "uploading",
-  Uploaded = "uploaded",
+  Uploaded = "Uploaded",
   FailedToUpload = "failed to upload",
   Indexed = "indexed",
   FailedToIndex = "failed to index",
@@ -85,7 +85,7 @@ export const MultiFileUpload = ({ isModalOpen, conversationId, onModalDismiss }:
         setConversationTitleErrorMessage('Conversation title is required');
         return;
       }
-      const response = await generateConversationbPlaceholder(conversationTitle)
+      const response = await generateConversationPlaceholder(conversationTitle)
 
       if(response.ok) {
         const payload = await response.json();
@@ -118,6 +118,16 @@ export const MultiFileUpload = ({ isModalOpen, conversationId, onModalDismiss }:
 
       const uploadResult = await uploadFile(fileDetail.file, conversationId);
       const updatedStatus = uploadResult.isUploaded ? FileUploadStatus.Uploaded : FileUploadStatus.FailedToUpload;
+
+      appStateContext?.dispatch({ 
+        type: 'UPDATE_PENDING_DOCUMENTS', 
+        payload: [{ 
+          id: uploadResult.document_status.id, 
+          conversationId: uploadResult.document_status.conversationId,
+          fileName: uploadResult.document_status.fileName,
+          status: uploadResult.document_status.status as DocumentStatusState
+        }]
+      });
 
       if(updatedStatus === FileUploadStatus.FailedToUpload) {
         setMessageOptions({ ...messageOptions, message: 'Failed to upload some files', messageType: MessageBarType.error });
