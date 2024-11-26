@@ -17,24 +17,23 @@ class LlamaIndexService:
         loader: BaseReader
     ) -> VectorStoreIndex:
         
-        try:
-            documents = loader.load_data()
-            #self.__update_document_status__(master_document_id, user_principal_id, "Indexing", document_status_container_client)
+        documents = loader.load_data()
+        #self.__update_document_status__(master_document_id, user_principal_id, "Indexing", document_status_container_client)
 
-            storage_context = StorageContext.from_defaults(vector_store=vector_store)
-            Settings.llm = llm
-            Settings.embed_model = embed_model
+        storage_context = StorageContext.from_defaults(vector_store=vector_store)
+        Settings.llm = llm
+        Settings.embed_model = embed_model
 
-            index = VectorStoreIndex.from_documents(
-                documents, storage_context=storage_context
-            )
+        index = VectorStoreIndex.from_documents(
+            documents, storage_context=storage_context
+        )
 
-            return index
+        return index
 
             #self.__update_document_status__(master_document_id, user_principal_id, "Indexed", document_status_container_client)
 
-        except Exception as e:
-            logging.error(f"Error indexing blob: {e}")
+        # except Exception as e:
+        #     logging.error(f"Error indexing blob: {e}")
             #self.__update_document_status__(master_document_id, user_principal_id, "Failed", document_status_container_client)
     
     #def __update_document_status__(self, document_id: str, user_id: str, status: str, container_client: ContainerProxy):

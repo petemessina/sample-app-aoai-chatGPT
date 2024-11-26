@@ -39,9 +39,11 @@ def blob_trigger(indexBlob: func.InputStream):
         for entity in e.detected_entities:
             logging.error(f"PII Detected in document {blob_name}: {entity.category} with confidence {entity.confidence_score}")
     except Exception as e:
-        logging.error(f"Exception type:{type(e)}")
         logging.error(f"Error indexing blob: {e}")
+    else:
+        logging.info(f"Blob {blob_name} indexed successfully.")
     finally:
+        logging.info(f"Deleting blob {blob_name}.")
         blob_client.delete_blob()
         blob_client.close()
     
