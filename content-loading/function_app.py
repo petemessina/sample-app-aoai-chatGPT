@@ -9,6 +9,7 @@ from azure.storage.blob import BlobClient
 
 from AzStorageBlobReader import AzStorageBlobReader
 from AzureCosmosDBNoSqlVectorSearch import AzureCosmosDBNoSqlVectorSearch
+from PIIServiceReaderFilter import PIIServiceReaderFilter, PIIDetectionError
 from llama_index_service import LlamaIndexService
 
 app = func.FunctionApp()
@@ -25,20 +26,27 @@ def blob_trigger(indexBlob: func.InputStream):
         llm = __create_llm__()
         embed_model = __create_embedding_model__()
         blob_client = __create_blob_client__(container_name, blob_name)
-        blob_loader = __create_blob_loader__(blob_client)
+        loader = __create_composite_loader__(blob_client)
 
         llama_index_service.index_documents(
             llm,
             vector_store,
             embed_model,
-            blob_loader
+            loader
         )
-
-        blob_client.delete_blob()
+        
+    except PIIDetectionError as e:
+        for entity in e.detected_entities:
+            logging.error(f"PII Detected in document {blob_name}: {entity.category} with confidence {entity.confidence_score}")
     except Exception as e:
         logging.error(f"Error indexing blob: {e}")
-
-
+    else:
+        logging.info(f"Blob {blob_name} indexed successfully.")
+    finally:
+        logging.info(f"Deleting blob {blob_name}.")
+        blob_client.delete_blob()
+        blob_client.close()
+    
 def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
     endpoint = os.environ["CosmosDBEndpoint"]
     database_name = os.environ["CosmosDBDatabase"]
@@ -81,12 +89,33 @@ def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
 
 
 # Create the Azure Blob Loader
-def __create_blob_loader__(blob_client: BlobClient) -> AzStorageBlobReader:
+def __create_composite_loader__(blob_client: BlobClient) -> AzStorageBlobReader:
 
     blob_properties = blob_client.get_blob_properties()
     logging.info(f"Creating Azure Blob Loader for container {blob_properties.container} and blob {blob_properties.name}.")
 
-    return AzStorageBlobReader(blob_client=blob_client)
+    blob_reader = AzStorageBlobReader(blob_client=blob_client)
+
+    pii_endpoint = os.environ["PIIEndpoint"]
+    
+    try:
+        pii_categories = os.environ["PIICategories"].split(",")
+    except KeyError:
+        pii_categories = None
+
+    DEFAULT_MIN_CONFIDENCE = 0.8
+    try:
+        min_confidence = float(os.environ["PIIMinimumConfidence"])
+    except KeyError:
+        min_confidence = DEFAULT_MIN_CONFIDENCE
+
+    pii_filter = PIIServiceReaderFilter(
+        reader=blob_reader, 
+        endpoint=pii_endpoint,
+        pii_categories=pii_categories, 
+        min_confidence=min_confidence)
+
+    return pii_filter
 
 def __create_llm__() -> AzureOpenAI:
     model_name: str = os.environ["OpenAIModelName"]
