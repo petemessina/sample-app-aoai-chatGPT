@@ -40,6 +40,7 @@ def blob_trigger(indexBlob: func.InputStream):
             logging.error(f"PII Detected in document {blob_name}: {entity.category} with confidence {entity.confidence_score}")
     except Exception as e:
         logging.error(f"Error indexing blob: {e}")
+        raise e
     else:
         logging.info(f"Blob {blob_name} indexed successfully.")
     finally:
