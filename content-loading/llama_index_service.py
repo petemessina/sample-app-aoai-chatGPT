@@ -1,5 +1,3 @@
-import logging
-
 from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.core import (StorageContext, VectorStoreIndex)
 from llama_index.core.settings import Settings
@@ -25,8 +23,7 @@ class LlamaIndexService:
     ) -> VectorStoreIndex:
         
         documents = loader.load_data()
-        master_documents = list({ (document.metadata['master_document_id'], document.metadata['user_principal_id']): document for document in documents }.values())
-        self.__update_document_status__(master_documents, "Indexing")
+        self.__document_service.update_documents_status(documents, "Indexing")
 
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
         Settings.llm = llm
@@ -36,10 +33,6 @@ class LlamaIndexService:
             documents, storage_context=storage_context
         )
 
-        self.__update_document_status__(master_documents, "Indexed")
+        self.__document_service.update_documents_status(documents, "Indexed")
 
         return index
-
-    def __update_document_status__(self, master_documents: list[Document], status: str):
-        for document in master_documents:
-            self.__document_service.update_document_status(document.metadata['master_document_id'], document.metadata['user_principal_id'], status)
