@@ -23,21 +23,22 @@ def blob_trigger(indexBlob: func.InputStream):
     document_service: DocumentService = DocumentService(document_status_container_client)
     
     try:
-        llama_index_service: LlamaIndexService = LlamaIndexService(document_service)
         blob_name: str = indexBlob.name.split("/")[-1]
         container_name = ''.join(indexBlob.name.rsplit('/', 1)[:-1])
         vector_store = __create_vector_store__()
         llm = __create_llm__()
         embed_model = __create_embedding_model__()
+        llama_index_service: LlamaIndexService = LlamaIndexService(
+            document_service=document_service,
+            llm=llm,
+            vector_store=vector_store,
+            embed_model=embed_model
+        )
+        
         blob_client = __create_blob_client__(container_name, blob_name)
         loader = __create_composite_loader__(blob_client)
         
-        llama_index_service.index_documents(
-            llm,
-            vector_store,
-            embed_model,
-            loader
-        )
+        llama_index_service.index_documents(loader)
         
     except PIIDetectionError as e:
         document_service.update_document_status(e.document.metadata["master_document_id"], e.document.metadata["user_principal_id"], "PII Detected")

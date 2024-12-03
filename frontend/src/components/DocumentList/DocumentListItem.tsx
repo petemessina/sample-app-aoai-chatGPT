@@ -18,6 +18,7 @@ export const DocumentListItem: React.FC<Props> = ({ item, isSelected, onSelect }
     const [textFieldFocused, setTextFieldFocused] = useState(false)
     const [isHovered, setIsHovered] = React.useState(false)
     const [errorDelete, setErrorDelete] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
     const [hideDeleteDialog, { toggle: toggleDeleteDialog }] = useBoolean(true)
     const textFieldRef = useRef<ITextField | null>(null)
     const appStateContext = React.useContext(AppStateContext)
@@ -43,16 +44,18 @@ export const DocumentListItem: React.FC<Props> = ({ item, isSelected, onSelect }
     }, [textFieldFocused])
   
     const onDelete = async () => {
-        const response = await documentDelete(item.id)
+      setIsDeleting(true);
+      const response = await documentDelete(item.id)
 
-        if (!response.ok) {
-          setErrorDelete(true)
-          setTimeout(() => { setErrorDelete(false) }, 5000)
-        } else {
-          appStateContext?.dispatch({ type: 'DELETE_UPLOADED_DOCUMENT', payload: item.id })
-        }
-
-        toggleDeleteDialog()
+      if (!response.ok) {
+        setErrorDelete(true)
+        setTimeout(() => { setErrorDelete(false) }, 5000)
+      } else {
+        appStateContext?.dispatch({ type: 'DELETE_UPLOADED_DOCUMENT', payload: item.id })
+      }
+      
+      setIsDeleting(false)
+      toggleDeleteDialog()
     }
       
     return (
@@ -93,7 +96,7 @@ export const DocumentListItem: React.FC<Props> = ({ item, isSelected, onSelect }
                 dialogContentProps={dialogContentProps}
                 modalProps={modalProps}>
                 <DialogFooter>
-                    <PrimaryButton onClick={onDelete} text="Delete" />
+                    <PrimaryButton onClick={onDelete} text="Delete" disabled={isDeleting} />
                     <DefaultButton onClick={toggleDeleteDialog} text="Cancel" />
                 </DialogFooter>
             </Dialog>

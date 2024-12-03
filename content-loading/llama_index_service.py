@@ -10,24 +10,28 @@ from DocumentService import DocumentService
 
 class LlamaIndexService:
 
-    def __init__(self, document_service: DocumentService):
+    def __init__(
+        self, 
+        document_service: DocumentService,
+        llm: AzureOpenAI, 
+        vector_store: VectorStore,
+        embed_model: AzureOpenAIEmbedding
+    ):
         self.__document_service = document_service
+        self.__llm = llm
+        self.__vector_store = vector_store
+        self.__embed_model = embed_model
 
     # Index the documents
     # feed in document update service
-    def index_documents(self,
-        llm: AzureOpenAI, 
-        vector_store: VectorStore,
-        embed_model: AzureOpenAIEmbedding,
-        loader: BaseReader
-    ) -> VectorStoreIndex:
+    def index_documents(self, loader: BaseReader) -> VectorStoreIndex:
         
         documents = loader.load_data()
         self.__document_service.update_documents_status(documents, "Indexing")
 
-        storage_context = StorageContext.from_defaults(vector_store=vector_store)
-        Settings.llm = llm
-        Settings.embed_model = embed_model
+        storage_context = StorageContext.from_defaults(vector_store=self.__vector_store)
+        Settings.llm = self.__llm
+        Settings.embed_model = self.__embed_model
 
         index = VectorStoreIndex.from_documents(
             documents, storage_context=storage_context
