@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { ITextField, Stack, Checkbox, IconButton, Dialog, DialogFooter, PrimaryButton, DefaultButton, DialogType } from '@fluentui/react'
-import { UploadedDocument } from '../../api/models'
+import { DocumentStatusState, UploadedDocument } from '../../api/models'
 import { AppStateContext } from '../../state/AppProvider'
 import { useBoolean } from '@fluentui/react-hooks'
 
@@ -62,7 +62,6 @@ export const DocumentListItem: React.FC<Props> = ({ item, isSelected, onSelect }
         aria-label="uploaded document item"
         className={styles.itemCell}
         verticalAlign="center"
-        onClick={() => onSelect(item.id, !isSelected)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         styles={{
@@ -71,7 +70,7 @@ export const DocumentListItem: React.FC<Props> = ({ item, isSelected, onSelect }
           }
         }}>
             <Stack horizontal verticalAlign={'center'} style={{ width: '100%' }}>
-                <Checkbox checked={isSelected} onChange={(e, checked) => onSelect(item.id, checked || false)} />
+                <Checkbox checked={isSelected} onChange={(e, checked) => onSelect(item.id, checked || false)} disabled={ item.status != DocumentStatusState.Indexed} />
                 <div className={styles.fileDetail}>
                   <h6>{item.fileName}</h6>
                   <p><span>Status: {item.status}</span></p>

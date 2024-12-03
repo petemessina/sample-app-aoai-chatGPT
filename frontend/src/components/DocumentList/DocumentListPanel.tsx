@@ -15,11 +15,6 @@ import { UploadedDocument, uploadedDocumentList, UploadedDocumentLoadingState, g
 import { AppStateContext } from '../../state/AppProvider'
 import styles from './DocumentListPanel.module.css'
 
-type DocumentPolling = {
-  id: string;
-  pollingCount: number;
-}
-
 interface Props {
   conversationId?: string;
   handleSelectedUploadDocument: (id: string, checked:boolean) => void;
@@ -109,16 +104,22 @@ export const DocumentListPanel: React.FC<Props> = ({conversationId, handleSelect
   }, [appStateContext?.state.pendingDocuments]);
 
   useEffect(() => {
-    if(appStateContext && appStateContext.state.uploadedDocuments && appStateContext.state.currentChat) {
-      const filteredDocuments = appStateContext.state.uploadedDocuments.filter(document => document.conversationId === appStateContext?.state.currentChat?.id);
+    if(appStateContext?.state.currentChat?.id == conversationId) {
+      const filteredDocuments = appStateContext?.state.uploadedDocuments?.filter(document => document.conversationId === appStateContext?.state.currentChat?.id) ?? [];
 
       setSelectedUploadedDocuments([]);
       setFilteredUploadedDocuments(filteredDocuments)
+    }
+  }, [appStateContext?.state.currentChat]);
+
+  useEffect(() => {
+    if(appStateContext?.state.uploadedDocuments) {
+      const filteredDocuments = appStateContext.state.uploadedDocuments.filter(document => document.conversationId === appStateContext?.state.currentChat?.id);
+      setFilteredUploadedDocuments(filteredDocuments)
     } else {
-      setSelectedUploadedDocuments([]);
       setFilteredUploadedDocuments([])
     }
-  }, [appStateContext?.state.currentChat, appStateContext?.state.uploadedDocuments])
+  }, [appStateContext?.state.uploadedDocuments])
 
   const handleFetchUploadedDocuments = async () => {
 
