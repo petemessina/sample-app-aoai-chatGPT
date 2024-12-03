@@ -69,9 +69,9 @@ export const appStateReducer = (state: AppState, action: Action): AppState => {
           currentPendingDocuments.splice(pendingDocumentIndex, 1);
         } else {
           if (pendingDocumentIndex !== -1) {
-            currentPendingDocuments[pendingDocumentIndex] = document;
+            currentPendingDocuments[pendingDocumentIndex] = {...document, pollingCount: currentPendingDocuments[pendingDocumentIndex].pollingCount + 1};
           } else {
-            currentPendingDocuments.push(document);
+            currentPendingDocuments.push({...document, pollingCount: 0});
           }
         }
 

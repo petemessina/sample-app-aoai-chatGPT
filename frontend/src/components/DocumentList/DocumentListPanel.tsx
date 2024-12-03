@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState } from 'react'
+import React, { useContext, useEffect, useRef, useState, useCallback } from 'react'
 import {
   CommandBarButton,
   ICommandBarStyles,
@@ -11,10 +11,14 @@ import {
 } from '@fluentui/react'
 
 import { DocumentListItem } from './DocumentListItem'
-import useDocumentStatusPoller from './useDocumentStatusPoller'
-import { UploadedDocument, uploadedDocumentList, UploadedDocumentLoadingState } from '../../api'
+import { UploadedDocument, uploadedDocumentList, UploadedDocumentLoadingState, getDocumentStatuses, DocumentStatusState } from '../../api'
 import { AppStateContext } from '../../state/AppProvider'
 import styles from './DocumentListPanel.module.css'
+
+type DocumentPolling = {
+  id: string;
+  pollingCount: number;
+}
 
 interface Props {
   conversationId?: string;
@@ -35,14 +39,14 @@ const commandBarStyle: ICommandBarStyles = {
 }
 
 export const DocumentListPanel: React.FC<Props> = ({conversationId, handleSelectedUploadDocument}) => {
-  const appStateContext = useContext(AppStateContext)
-  const [offset, setOffset] = useState<number>(25)
-  const [maxPollingCount, setPollingCount] = useState<number>(10)
-  const [observerCounter, setObserverCounter] = useState(0)
-  const [filteredUploadedDocuments, setFilteredUploadedDocuments] = useState<UploadedDocument[]>([])
+  const appStateContext = useContext(AppStateContext);
+  const [offset, setOffset] = useState<number>(25);
+  const [maxPollingCount, setPollingCount] = useState<number>(30);
+  const [observerCounter, setObserverCounter] = useState(0);
+  const [filteredUploadedDocuments, setFilteredUploadedDocuments] = useState<UploadedDocument[]>([]);
   const [selectedUploadedDocuments, setSelectedUploadedDocuments] = useState<string[]>([]);
-  const [pendingDocumentStatuses, setPendingDocumentStatuses] = useState<Array<UploadedDocument>>([])
-  const { documentStatuses } = useDocumentStatusPoller(pendingDocumentStatuses, 5000, maxPollingCount)
+  const [pendingDocumentStatuses, setPendingDocumentStatuses] = useState<Array<UploadedDocument>>([]);
+  const [isPollingForStatus, setIsPollingForStatus] = useState<boolean>(false);
 
   const observerTarget = useRef(null)
   const firstRender = useRef(true)
@@ -61,28 +65,47 @@ export const DocumentListPanel: React.FC<Props> = ({conversationId, handleSelect
     setOffset(offset => (offset += 25))
   }, [observerCounter])
 
-  useEffect(() => {
-    const filteredItems = documentStatuses.filter(status => status.pollingCount < maxPollingCount);
-    const changedStatusItems = documentStatuses.filter(filteredItem => {
-      const docItem = pendingDocumentStatuses.find(d => d.id === filteredItem.id);
-      return docItem && docItem.status !== filteredItem.status;
-    });
-    
-
-    setPendingDocumentStatuses(filteredItems)
-
-    if(changedStatusItems && changedStatusItems.length > 0)
-    {
-      appStateContext?.dispatch({ type: 'UPDATE_PENDING_DOCUMENTS', payload: changedStatusItems })
+  
+  const documentPollingStatus = useCallback(async () => {
+    if(!appStateContext?.state.pendingDocuments && appStateContext?.state.pendingDocuments?.length == 0) {
+      setIsPollingForStatus(false);
+      return;
     }
-  }, [documentStatuses])
+
+    const documentStatusData = await getDocumentStatuses(appStateContext?.state.pendingDocuments?.map(doc => doc.id) ?? []) ?? [];
+
+    documentStatusData.map(document => {
+      const currentPendingDocumentItem = appStateContext?.state.pendingDocuments?.find(d => d.id === document.id);
+
+      if(currentPendingDocumentItem && currentPendingDocumentItem.pollingCount >= maxPollingCount) {
+        document.status = DocumentStatusState.PollingTimeout;
+      }
+    });
+
+    appStateContext?.dispatch({ type: 'UPDATE_PENDING_DOCUMENTS', payload: documentStatusData });
+  }, [appStateContext?.state.pendingDocuments]);
+
+  useEffect(() => {
+    if (appStateContext?.state.pendingDocuments && appStateContext?.state.pendingDocuments.length > 0) {
+      setIsPollingForStatus(true);
+
+      const interval = setInterval(async() => {
+        await documentPollingStatus();
+      }, 5000);
+
+      return () => clearInterval(interval);
+    }
+
+  }, [isPollingForStatus, appStateContext?.state.pendingDocuments, documentPollingStatus]);
 
   useEffect(() => {
     const missingPendingItems = appStateContext?.state.pendingDocuments?.filter(filteredItem => {
       return !pendingDocumentStatuses.some(d => d.id === filteredItem.id);
     }) ?? [];
 
-    setPendingDocumentStatuses(prev => [...prev, ...missingPendingItems.map(item => ({...item, pollingCount: 0}))]);
+    if(missingPendingItems.length > 0) {
+      setPendingDocumentStatuses(prev => [...prev, ...missingPendingItems.map(item => ({...item, pollingCount: 0}))]);
+    }
   }, [appStateContext?.state.pendingDocuments]);
 
   useEffect(() => {

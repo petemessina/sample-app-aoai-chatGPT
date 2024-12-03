@@ -27,7 +27,9 @@ class PIIServiceReaderFilter(BasePydanticReader):
         for doc in documents:
             detected_pii_entities = self.__detect_pii(doc)
             if detected_pii_entities:
-                raise PIIDetectionError(detected_entities=detected_pii_entities, message=f"Document contains PII: {doc.text}")
+                raise PIIDetectionError(detected_entities=detected_pii_entities, document=doc, message=f"Document contains PII: {doc.text}")
+            
+        return documents
 
     def __detect_pii(self, document: Document) -> List[PiiEntity]:
         """Check if a document contains PII.
@@ -55,9 +57,10 @@ class PIIServiceReaderFilter(BasePydanticReader):
 class PIIDetectionError(Exception):
     """Error raised when PII is detected in a document."""
     
-    def __init__(self, detected_entities: List[PiiEntity], message: Optional[str] = None):
+    def __init__(self, detected_entities: List[PiiEntity], document: Document, message: Optional[str] = None):
         super().__init__(message)
         self.detected_entities = detected_entities
+        self.document = document
 
 
 

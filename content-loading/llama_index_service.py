@@ -6,10 +6,17 @@ from llama_index.core.settings import Settings
 from llama_index.core.vector_stores.types import VectorStore
 from llama_index.core.readers.base import BaseReader
 from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
+from llama_index.core.schema import Document
+
+from DocumentService import DocumentService
 
 class LlamaIndexService:
 
+    def __init__(self, document_service: DocumentService):
+        self.__document_service = document_service
+
     # Index the documents
+    # feed in document update service
     def index_documents(self,
         llm: AzureOpenAI, 
         vector_store: VectorStore,
@@ -18,7 +25,8 @@ class LlamaIndexService:
     ) -> VectorStoreIndex:
         
         documents = loader.load_data()
-        #self.__update_document_status__(master_document_id, user_principal_id, "Indexing", document_status_container_client)
+        master_documents = list({ (document.metadata['master_document_id'], document.metadata['user_principal_id']): document for document in documents }.values())
+        self.__update_document_status__(master_documents, "Indexing")
 
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
         Settings.llm = llm
@@ -28,21 +36,10 @@ class LlamaIndexService:
             documents, storage_context=storage_context
         )
 
+        self.__update_document_status__(master_documents, "Indexed")
+
         return index
 
-            #self.__update_document_status__(master_document_id, user_principal_id, "Indexed", document_status_container_client)
-
-        # except Exception as e:
-        #     logging.error(f"Error indexing blob: {e}")
-            #self.__update_document_status__(master_document_id, user_principal_id, "Failed", document_status_container_client)
-    
-    #def __update_document_status__(self, document_id: str, user_id: str, status: str, container_client: ContainerProxy):
-    #    patch_operations = [
-    #        { 'op': 'replace', 'path': '/status', 'value': status }
-    #    ]
-
-    #    container_client.patch_item(
-    #        item=document_id,
-    #        partition_key=user_id,
-    #        patch_operations=patch_operations
-    #    )
+    def __update_document_status__(self, master_documents: list[Document], status: str):
+        for document in master_documents:
+            self.__document_service.update_document_status(document.metadata['master_document_id'], document.metadata['user_principal_id'], status)
