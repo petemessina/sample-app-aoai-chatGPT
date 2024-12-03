@@ -1,15 +1,6 @@
 @echo off
 
 echo.
-echo Restoring backend python packages
-echo.
-call python -m pip install -r requirements.txt
-if "%errorlevel%" neq "0" (
-    echo Failed to restore backend python packages
-    exit /B %errorlevel%
-)
-
-echo.
 echo Restoring frontend npm packages
 echo.
 cd frontend
@@ -28,12 +19,14 @@ if "%errorlevel%" neq "0" (
     exit /B %errorlevel%
 )
 
+cd ..
+call powershell -Command scripts\loadenv.ps1
+
 echo.    
 echo Starting backend    
 echo.    
-cd ..  
 start http://127.0.0.1:50505
-call python -m uvicorn app:app  --port 50505 --reload
+call .venv\scripts\python.exe -m uvicorn app:app  --port 50505 --reload
 if "%errorlevel%" neq "0" (    
     echo Failed to start backend    
     exit /B %errorlevel%    
