@@ -25,6 +25,24 @@
 				"command": "${config:azureFunctions.pythonVenv}/bin/python -m pip install -r requirements.txt"
 			},
 			"problemMatcher": [],
+			"dependsOn": "create and activate venv",
+			"options": {
+				"cwd": "${workspaceFolder}/content-loading"
+			}
+		},
+		{
+			"label": "create and activate venv",
+			"type": "shell",
+			"osx": {
+				"command": "python -m venv .venv"
+			},
+			"windows": {
+				"command": "python -m venv .venv"
+			},
+			"linux": {
+				"command": "python -m venv .venv"
+			},
+			"problemMatcher": [],
 			"options": {
 				"cwd": "${workspaceFolder}/content-loading"
 			}
