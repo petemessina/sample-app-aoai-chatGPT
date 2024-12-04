@@ -81,7 +81,7 @@ def create_app():
             document_chunk_context: DocumentChunkContext = DocumentChunkContext(cosmos_endpoint, cosmos_credential, app_settings.chat_history.database, app_settings.document_upload.document_chunks_container)
             document_status_context: DocumentStatusContext = DocumentStatusContext(cosmos_endpoint, cosmos_credential, app_settings.chat_history.database, app_settings.document_upload.document_status_container, document_chunk_context)
             document_status_routes = DocumentStatusRoutes(document_status_context)
-            document_chunk_routes = DocumentChunkRoutes(container_client, document_chunk_context, document_status_context)
+            document_chunk_routes = DocumentChunkRoutes(container_client, document_chunk_context, document_status_context, app_settings.document_upload.valid_extensions)
 
             app.cosmos_client = await init_cosmosdb_client(
                 document_status_context=document_status_context,
@@ -148,6 +148,7 @@ frontend_settings = {
         "show_chat_history_button": app_settings.ui.show_chat_history_button,
         "show_document_upload_button": app_settings.ui.show_document_upload_button,
     },
+    "valid_document_extensions": app_settings.document_upload.valid_extensions,
     "sanitize_answer": app_settings.base_settings.sanitize_answer,
     "oyd_enabled": app_settings.base_settings.datasource_type,
 }

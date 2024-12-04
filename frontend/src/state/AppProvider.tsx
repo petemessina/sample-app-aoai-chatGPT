@@ -32,6 +32,7 @@ export interface AppState {
   chatHistory: Conversation[] | null
   uploadedDocuments: UploadedDocument[] | null
   pendingDocuments: PendingUploadedDocuments[] | null
+  selectedUploadedDocuments: string[]
   filteredChatHistory: Conversation[] | null
   currentChat: Conversation | null
   frontendSettings: FrontendSettings | null
@@ -44,6 +45,7 @@ export type Action =
   | { type: 'TOGGLE_CHAT_HISTORY' }
   | { type: 'TOGGLE_DOCUMENT_LIST' }
   | { type: 'SET_COSMOSDB_STATUS'; payload: CosmosDBHealth }
+  | { type: 'NEW_CHAT_SELECTED'; payload: Conversation | null }
   | { type: 'UPDATE_CHAT_HISTORY_LOADING_STATE'; payload: ChatHistoryLoadingState }
   | { type: 'UPDATE_UPLOADED_DOCUMENTS_LOADING_STATE'; payload: UploadedDocumentLoadingState }
   | { type: 'UPDATE_CURRENT_CHAT'; payload: Conversation | null }
@@ -51,6 +53,7 @@ export type Action =
   | { type: 'UPDATE_CHAT_HISTORY'; payload: Conversation }
   | { type: 'UPDATE_UPLOADED_DOCUMENTS'; payload: UploadedDocument }
   | { type: 'UPDATE_PENDING_DOCUMENTS'; payload: Array<UploadedDocument> }
+  | { type: 'UPDATE_SELECTED_DOCUMENTS'; payload: [string, boolean] }
   | { type: 'UPDATE_CURRENT_CHAT_AND_HISTORY'; payload: Conversation }
   | { type: 'UPDATE_CHAT_TITLE'; payload: Conversation }
   | { type: 'DELETE_CHAT_ENTRY'; payload: string }
@@ -75,6 +78,7 @@ const initialState: AppState = {
   chatHistory: null,
   uploadedDocuments: null,
   pendingDocuments: [],
+  selectedUploadedDocuments: [],
   filteredChatHistory: null,
   currentChat: null,
   isCosmosDBAvailable: {
