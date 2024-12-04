@@ -34,5 +34,6 @@
     "remoteUser": "vscode",
     "hostRequirements": {
         "memory": "8gb"
-    }
+    },
+    "postCreateCommand": "python -m pip install --upgrade pip"
 }
