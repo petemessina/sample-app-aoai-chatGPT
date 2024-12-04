@@ -11,6 +11,7 @@ from AzStorageBlobReader import AzStorageBlobReader
 from AzureCosmosDBNoSqlVectorSearch import AzureCosmosDBNoSqlVectorSearch
 from PIIServiceReaderFilter import PIIServiceReaderFilter, PIIDetectionError
 from llama_index_service import LlamaIndexService
+from DocumentService import DocumentService
 
 app = func.FunctionApp()
 
@@ -18,24 +19,30 @@ app = func.FunctionApp()
 def blob_trigger(indexBlob: func.InputStream):
     logging.info(f"Indexing blob: {indexBlob.name}")
     
+    document_status_container_client = __create_status_container_proxy()
+    document_service: DocumentService = DocumentService(document_status_container_client)
+    
     try:
-        llama_index_service: LlamaIndexService = LlamaIndexService()
         blob_name: str = indexBlob.name.split("/")[-1]
         container_name = ''.join(indexBlob.name.rsplit('/', 1)[:-1])
         vector_store = __create_vector_store__()
         llm = __create_llm__()
         embed_model = __create_embedding_model__()
-        blob_client = __create_blob_client__(container_name, blob_name)
-        loader = __create_composite_loader__(blob_client)
-
-        llama_index_service.index_documents(
-            llm,
-            vector_store,
-            embed_model,
-            loader
+        llama_index_service: LlamaIndexService = LlamaIndexService(
+            document_service=document_service,
+            llm=llm,
+            vector_store=vector_store,
+            embed_model=embed_model
         )
         
+        blob_client = __create_blob_client__(container_name, blob_name)
+        loader = __create_composite_loader__(blob_client)
+        
+        llama_index_service.index_documents(loader)
+        
     except PIIDetectionError as e:
+        document_service.update_document_status(e.document.metadata["master_document_id"], e.document.metadata["user_principal_id"], "PII Detected")
+
         for entity in e.detected_entities:
             logging.error(f"PII Detected in document {blob_name}: {entity.category} with confidence {entity.confidence_score}")
     except Exception as e:
@@ -173,3 +180,16 @@ def __create_blob_client__(container_name: str, blob_name: str) -> BlobClient:
                           container_name=container_name, 
                           blob_name=blob_name, 
                           credential=DefaultAzureCredential())
+    
+def __create_status_container_proxy() -> ContainerProxy:
+    endpoint = os.environ["CosmosDBEndpoint"]
+    database_name = os.environ["CosmosDBDatabase"]
+    container_name = os.environ["CosmosDBDocumentStatusContainer"]
+    credential = DefaultAzureCredential()
+
+    # Create the Cosmos client
+    client = CosmosClient(endpoint, credential)
+    database_proxy = client.get_database_client(database_name)
+    container_proxy = database_proxy.get_container_client(container_name)
+
+    return container_proxy
