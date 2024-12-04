@@ -1,20 +1,25 @@
 {
     "name": "Azure Developer CLI",
-    "image": "mcr.microsoft.com/devcontainers/python:3.10",
+    "image": "mcr.microsoft.com/devcontainers/python:3.11",
     "features": {
         "ghcr.io/devcontainers/features/node:1": {
-            "version": "16",
+            "version": "22",
             "nodeGypDependencies": false
         },
-        "ghcr.io/devcontainers/features/azure-cli:1.0.8": {},
-        "ghcr.io/azure/azure-dev/azd:latest": {}
+        "ghcr.io/devcontainers/features/azure-cli:1.2.5": {},
+        "ghcr.io/azure/azure-dev/azd:latest": {},
+        "ghcr.io/jlaundry/devcontainer-features/azure-functions-core-tools:1": {
+            "version": "4.0.6610"
+        }
     },
     "customizations": {
         "vscode": {
             "extensions": [
                 "ms-azuretools.azure-dev",
                 "ms-azuretools.vscode-bicep",
-                "ms-python.python"
+                "ms-python.python",
+                "ms-azuretools.vscode-azurefunctions",
+                "azurite.azurite"
             ]
         },
         "codespaces": {
@@ -29,5 +34,6 @@
     "remoteUser": "vscode",
     "hostRequirements": {
         "memory": "8gb"
-    }
+    },
+    "postCreateCommand": "python -m pip install --upgrade pip"
 }

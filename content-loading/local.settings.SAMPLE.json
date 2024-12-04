@@ -5,6 +5,7 @@
     "CosmosDBEndpoint": "<cosmos db endpoint uri>",
     "CosmosDBDatabase": "db_conversation_history",
     "CosmosDBContainer": "documents",
+    "CosmosDBDocumentStatusContainer": "document_status",
     "OpenAIAPIKey": "<openai api key>",
     "OpenAIEndpoint": "<openai endpoint uri>",
     "OpenAIAPIVersion": "2024-05-01-preview",
