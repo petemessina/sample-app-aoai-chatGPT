@@ -55,6 +55,7 @@ export const ChatHistoryListItemCell: React.FC<ChatHistoryListItemCellProps> = (
   const [editTitle, setEditTitle] = useState('')
   const [hideDeleteDialog, { toggle: toggleDeleteDialog }] = useBoolean(true)
   const [errorDelete, setErrorDelete] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [renameLoading, setRenameLoading] = useState(false)
   const [errorRename, setErrorRename] = useState<string | undefined>(undefined)
   const [textFieldFocused, setTextFieldFocused] = useState(false)
@@ -95,7 +96,9 @@ export const ChatHistoryListItemCell: React.FC<ChatHistoryListItemCellProps> = (
   }, [appStateContext?.state.currentChat?.id, item?.id])
 
   const onDelete = async () => {
+    setIsDeleting(true);
     const response = await historyDelete(item.id)
+
     if (!response.ok) {
       setErrorDelete(true)
       setTimeout(() => {
@@ -104,6 +107,8 @@ export const ChatHistoryListItemCell: React.FC<ChatHistoryListItemCellProps> = (
     } else {
       appStateContext?.dispatch({ type: 'DELETE_CHAT_ENTRY', payload: item.id })
     }
+
+    setIsDeleting(false)
     toggleDeleteDialog()
   }
 
@@ -283,7 +288,7 @@ export const ChatHistoryListItemCell: React.FC<ChatHistoryListItemCellProps> = (
         dialogContentProps={dialogContentProps}
         modalProps={modalProps}>
         <DialogFooter>
-          <PrimaryButton onClick={onDelete} text="Delete" />
+          <PrimaryButton onClick={onDelete} text="Delete" disabled={isDeleting} />
           <DefaultButton onClick={toggleDeleteDialog} text="Cancel" />
         </DialogFooter>
       </Dialog>

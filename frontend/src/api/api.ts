@@ -73,6 +73,11 @@ export const uploadedDocumentList = async (offset = 0): Promise<UploadedDocument
 }
 
 export const getDocumentStatuses = async (documentIds: Array<string>): Promise<UploadedDocument[] | null> => {
+
+  if (!documentIds || documentIds.length === 0) {
+    return null
+  }
+  
   const response = await fetch(`/documents/statuses`, {
     method: 'POST',
     body: JSON.stringify({

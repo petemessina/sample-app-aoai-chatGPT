@@ -42,6 +42,7 @@ export const MultiFileUpload = ({ isModalOpen, conversationId, onModalDismiss }:
   const [conversationTitleErrorMessage, setConversationTitleErrorMessage] = useState('');
   const prevUploadingRef = useRef<boolean>(false);
   const prevUploading = prevUploadingRef.current;
+  const acceptedFileTypes = [".pdf", ".txt", ".csv", ".md", ".png" , ".jpeg", ".jpg"];
 
   useEffect(() => {
     prevUploadingRef.current = uploading;
@@ -64,10 +65,25 @@ export const MultiFileUpload = ({ isModalOpen, conversationId, onModalDismiss }:
       return;
     }
 
-    const fileDetails = Array.from(newFiles).map(file => ({
-      status: FileUploadStatus.WaitingToBeIndexed,
-      file: file,
-    }));
+    const fileDetails = Array.from(newFiles).reduce<FileDetails[]>((validFiles, file) => {
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
+      let invalidFileFound = false;
+
+      if (fileExtension && acceptedFileTypes.includes(`.${fileExtension}`)) {
+        validFiles.push(({
+          status: FileUploadStatus.WaitingToBeIndexed,
+          file: file,
+        }));
+      } else {
+        invalidFileFound = true;
+      }
+
+      if(invalidFileFound) {
+        setMessageOptions({ ...messageOptions, isVisible: true, message: 'Some file formats are invalid.', messageType: MessageBarType.error });
+      }
+
+      return validFiles;
+    }, []);
 
     setUploadedFiles([...uploadedFiles, ...fileDetails])
     e.target.value = ""
@@ -191,7 +207,7 @@ export const MultiFileUpload = ({ isModalOpen, conversationId, onModalDismiss }:
             <TextField label="Conversation Title" value={conversationTitle} errorMessage={conversationTitleErrorMessage} onChange={(e, newValue) => setConversationTitle(newValue ?? '')} required />
           </div>
           <div className={styles.fileUploadBox}>
-            <input type="file" id="fileUpload" className={styles.fileUploadInput} onChange={inputChange} multiple />
+            <input type="file" id="fileUpload" className={styles.fileUploadInput} onChange={inputChange} accept={acceptedFileTypes.join(", ")} multiple />
             <span>Drag and drop or <span className={styles.fileLink}>Choose your files</span></span>
           </div>
           <div className={styles.fileAttachmentContainer}>

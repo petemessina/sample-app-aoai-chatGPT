@@ -68,6 +68,10 @@ export type UploadedDocument = {
   status: DocumentStatusState
 }
 
+export type PendingUploadedDocuments = UploadedDocument & {
+  pollingCount: number
+}
+
 export enum ChatCompletionType {
   ChatCompletion = 'chat.completion',
   ChatCompletionChunk = 'chat.completion.chunk'

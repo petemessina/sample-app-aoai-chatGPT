@@ -47,26 +47,27 @@ const enum messageStatus {
 }
 
 const Chat = () => {
-  const appStateContext = useContext(AppStateContext)
-  const ui = appStateContext?.state.frontendSettings?.ui
-  const AUTH_ENABLED = appStateContext?.state.frontendSettings?.auth_enabled
-  const chatMessageStreamEnd = useRef<HTMLDivElement | null>(null)
-  const [isLoading, setIsLoading] = useState<boolean>(false)
-  const [showLoadingMessage, setShowLoadingMessage] = useState<boolean>(false)
-  const [activeCitation, setActiveCitation] = useState<Citation>()
-  const [isCitationPanelOpen, setIsCitationPanelOpen] = useState<boolean>(false)
-  const [isIntentsPanelOpen, setIsIntentsPanelOpen] = useState<boolean>(false)
-  const abortFuncs = useRef([] as AbortController[])
-  const [showAuthMessage, setShowAuthMessage] = useState<boolean | undefined>()
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [execResults, setExecResults] = useState<ExecResults[]>([])
-  const [processMessages, setProcessMessages] = useState<messageStatus>(messageStatus.NotRunning)
-  const [clearingChat, setClearingChat] = useState<boolean>(false)
+  const appStateContext = useContext(AppStateContext);
+  const ui = appStateContext?.state.frontendSettings?.ui;
+  const AUTH_ENABLED = appStateContext?.state.frontendSettings?.auth_enabled;
+  const chatMessageStreamEnd = useRef<HTMLDivElement | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [showLoadingMessage, setShowLoadingMessage] = useState<boolean>(false);
+  const [activeCitation, setActiveCitation] = useState<Citation>();
+  const [isCitationPanelOpen, setIsCitationPanelOpen] = useState<boolean>(false);
+  const [isIntentsPanelOpen, setIsIntentsPanelOpen] = useState<boolean>(false);
+  const abortFuncs = useRef([] as AbortController[]);
+  const [showAuthMessage, setShowAuthMessage] = useState<boolean | undefined>();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [execResults, setExecResults] = useState<ExecResults[]>([]);
+  const [processMessages, setProcessMessages] = useState<messageStatus>(messageStatus.NotRunning);
+  const [clearingChat, setClearingChat] = useState<boolean>(false);
   const [selectedUploadedDocuments, setSelectedUploadedDocuments] = useState<string[]>([]);
-  const [hideErrorDialog, { toggle: toggleErrorDialog }] = useBoolean(true)
-  const [errorMsg, setErrorMsg] = useState<ErrorMessage | null>()
-  const [logo, setLogo] = useState('')
-  const [answerId, setAnswerId] = useState<string>('')
+  const [hideErrorDialog, { toggle: toggleErrorDialog }] = useBoolean(true);
+  const [errorMsg, setErrorMsg] = useState<ErrorMessage | null>();
+  const [logo, setLogo] = useState('');
+  const [answerId, setAnswerId] = useState<string>('');
+  const [currentConversationId, setCurrentConversationId] = useState<string | undefined>(undefined);
 
   const errorDialogContentProps = {
     type: DialogType.close,
@@ -641,6 +642,12 @@ const Chat = () => {
     } else {
       setMessages([])
     }
+
+    if(appStateContext?.state.currentChat?.id != currentConversationId) {
+      setSelectedUploadedDocuments([])
+      setCurrentConversationId(appStateContext?.state.currentChat?.id)
+    }
+    
   }, [appStateContext?.state.currentChat])
 
   useLayoutEffect(() => {
@@ -747,8 +754,6 @@ const Chat = () => {
       catch {
         return null;
       }
-      // const execResults = JSON.parse(message.content) as AzureSqlServerExecResults;
-      // return execResults.all_exec_results.at(-1)?.code_exec_result;
     }
     return null;
   }

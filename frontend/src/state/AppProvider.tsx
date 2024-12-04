@@ -17,7 +17,8 @@ import {
   historyEnsure,
   historyList,
   uploadedDocumentList,
-  UploadedDocument
+  UploadedDocument,
+  PendingUploadedDocuments
 } from '../api'
 
 import { appStateReducer } from './AppReducer'
@@ -30,7 +31,7 @@ export interface AppState {
   isCosmosDBAvailable: CosmosDBHealth
   chatHistory: Conversation[] | null
   uploadedDocuments: UploadedDocument[] | null
-  pendingDocuments: UploadedDocument[] | null
+  pendingDocuments: PendingUploadedDocuments[] | null
   filteredChatHistory: Conversation[] | null
   currentChat: Conversation | null
   frontendSettings: FrontendSettings | null
