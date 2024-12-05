@@ -12,6 +12,7 @@ from AzureCosmosDBNoSqlVectorSearch import AzureCosmosDBNoSqlVectorSearch
 from PIIServiceReaderFilter import PIIServiceReaderFilter, PIIDetectionError
 from llama_index_service import LlamaIndexService
 from DocumentService import DocumentService
+from MultiModalImageReader import MultiModalImageReader
 
 app = func.FunctionApp()
 
@@ -41,7 +42,7 @@ def blob_trigger(indexBlob: func.InputStream):
         llama_index_service.index_documents(loader)
         
     except PIIDetectionError as e:
-        document_service.update_document_status(e.document.metadata["master_document_id"], e.document.metadata["user_principal_id"], "PII Detected")
+        document_service.update_document_status(e.document, "PII Detected")
 
         for entity in e.detected_entities:
             logging.error(f"PII Detected in document {blob_name}: {entity.category} with confidence {entity.confidence_score}")
@@ -95,7 +96,7 @@ def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
         create_container=False
     )
 
-
+from llama_index.readers.file import ImageReader
 # Create the Azure Blob Loader
 def __create_composite_loader__(blob_client: BlobClient) -> AzStorageBlobReader:
 
@@ -103,6 +104,16 @@ def __create_composite_loader__(blob_client: BlobClient) -> AzStorageBlobReader:
     logging.info(f"Creating Azure Blob Loader for container {blob_properties.container} and blob {blob_properties.name}.")
 
     blob_reader = AzStorageBlobReader(blob_client=blob_client)
+
+    model_name: str = os.environ["OpenAIModelName"]
+    api_key: str = os.environ["OpenAIAPIKey"]
+    endpoint: str = os.environ["OpenAIEndpoint"]
+    api_version: str = os.environ["OpenAIAPIVersion"]
+    blob_reader.file_extractor = {
+        ".jpg": MultiModalImageReader(azure_endpoint=endpoint, api_key=api_key, engine=model_name, api_version=api_version, model=model_name),
+        ".png": MultiModalImageReader(azure_endpoint=endpoint, api_key=api_key, engine=model_name, api_version=api_version, model=model_name) 
+    }
+    
 
     pii_endpoint = os.environ["PIIEndpoint"]
     
