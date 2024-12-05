@@ -28,9 +28,10 @@ def azure_openai_model(settings):
     from llama_index.multi_modal_llms.azure_openai import AzureOpenAIMultiModal
     return AzureOpenAIMultiModal(
         model="gpt-4o",
-        api_base=settings.api_base,
+        azure_endpoint=settings.api_base,
         api_key=settings.api_key,
-        engine=settings.engine,         
+        engine=settings.engine,
+        azure_deployment=settings.engine,         
     )
 
 def test_multi_modal_reader_load_data(azure_openai_model):
