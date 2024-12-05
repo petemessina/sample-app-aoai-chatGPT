@@ -81,6 +81,7 @@ class _DocumentUploadSettings(BaseSettings):
     document_status_container: str
     enable_feedback: bool = False
     valid_extensions: Optional[List[str]]
+    minimum_similarity_score: float
 
     @field_validator('valid_extensions', mode="before")
     @classmethod
