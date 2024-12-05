@@ -4,6 +4,7 @@ frontend/node_modules
 static
 .azure/
 __pycache__/
+.pytest_cache/
 .ipynb_checkpoints/
 # Azurite files
 __azurite*.json
