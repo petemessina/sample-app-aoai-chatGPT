@@ -166,6 +166,7 @@ export type FrontendSettings = {
   auth_enabled?: string | null
   feedback_enabled?: string | null
   ui?: UI
+  valid_document_extensions?: Array<string> | null
   sanitize_answer?: boolean
   oyd_enabled?: boolean
 }

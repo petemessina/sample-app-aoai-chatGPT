@@ -8,6 +8,8 @@ export const appStateReducer = (state: AppState, action: Action): AppState => {
       return { ...state, isChatHistoryOpen: !state.isChatHistoryOpen, isUploadedDocumentsOpen: false }
     case 'TOGGLE_DOCUMENT_LIST':
       return { ...state, isUploadedDocumentsOpen: !state.isUploadedDocumentsOpen, isChatHistoryOpen: false }
+    case 'NEW_CHAT_SELECTED':
+      return { ...state, currentChat: action.payload, selectedUploadedDocuments: [] }
     case 'UPDATE_CURRENT_CHAT':
       return { ...state, currentChat: action.payload }
     case 'UPDATE_CHAT_HISTORY_LOADING_STATE':
@@ -83,7 +85,12 @@ export const appStateReducer = (state: AppState, action: Action): AppState => {
       });
     
       return { ...state, pendingDocuments: currentPendingDocuments, uploadedDocuments: currentUploadedDocuments };
+    case 'UPDATE_SELECTED_DOCUMENTS':
+      const [documentId, isChecked] = action.payload;
+      let selectedUploadedDocuments = state.selectedUploadedDocuments ?? [];
 
+      selectedUploadedDocuments = isChecked ? selectedUploadedDocuments.concat(documentId) : selectedUploadedDocuments.filter(id => id !== documentId);
+      return { ...state, selectedUploadedDocuments: selectedUploadedDocuments }
     case 'UPDATE_CHAT_TITLE':
       if (!state.chatHistory) {
         return { ...state, chatHistory: [] }
