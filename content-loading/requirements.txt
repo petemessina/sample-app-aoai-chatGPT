@@ -9,4 +9,3 @@ llama-index-embeddings-azure-openai==0.3.0
 llama-index-llms-azure-openai==0.3.0
 llama-index-readers-azstorage_blob==0.3.0
 azure-ai-textanalytics==5.3.0
-llama-index-multi-modal-llms-azure-openai==0.3.0

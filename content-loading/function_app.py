@@ -12,7 +12,6 @@ from AzureCosmosDBNoSqlVectorSearch import AzureCosmosDBNoSqlVectorSearch
 from PIIServiceReaderFilter import PIIServiceReaderFilter, PIIDetectionError
 from llama_index_service import LlamaIndexService
 from DocumentService import DocumentService
-from MultiModalImageReader import MultiModalImageReader
 
 app = func.FunctionApp()
 
@@ -96,7 +95,6 @@ def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
         create_container=False
     )
 
-from llama_index.readers.file import ImageReader
 # Create the Azure Blob Loader
 def __create_composite_loader__(blob_client: BlobClient) -> AzStorageBlobReader:
 
@@ -109,10 +107,6 @@ def __create_composite_loader__(blob_client: BlobClient) -> AzStorageBlobReader:
     api_key: str = os.environ["OpenAIAPIKey"]
     endpoint: str = os.environ["OpenAIEndpoint"]
     api_version: str = os.environ["OpenAIAPIVersion"]
-    blob_reader.file_extractor = {
-        ".jpg": MultiModalImageReader(azure_endpoint=endpoint, api_key=api_key, engine=model_name, api_version=api_version, model=model_name),
-        ".png": MultiModalImageReader(azure_endpoint=endpoint, api_key=api_key, engine=model_name, api_version=api_version, model=model_name) 
-    }
     
 
     pii_endpoint = os.environ["PIIEndpoint"]
