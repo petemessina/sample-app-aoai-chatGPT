@@ -1,6 +1,8 @@
 import os
+from typing import List
 import azure.functions as func
 import logging
+from llama_index.core.multi_modal_llms import MultiModalLLM
 from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
 from azure.cosmos import CosmosClient, ContainerProxy, PartitionKey
@@ -10,6 +12,7 @@ from azure.storage.blob import BlobClient
 from AzStorageBlobReader import AzStorageBlobReader
 from AzureCosmosDBNoSqlVectorSearch import AzureCosmosDBNoSqlVectorSearch
 from PIIServiceReaderFilter import PIIServiceReaderFilter, PIIDetectionError
+from content_loading.image_model_reader import ImageModelReader
 from llama_index_service import LlamaIndexService
 from DocumentService import DocumentService
 
@@ -27,6 +30,7 @@ def blob_trigger(indexBlob: func.InputStream):
         container_name = ''.join(indexBlob.name.rsplit('/', 1)[:-1])
         vector_store = __create_vector_store__()
         llm = __create_llm__()
+        llama_compat_llm = __create_llama_compat_llm()
         embed_model = __create_embedding_model__()
         llama_index_service: LlamaIndexService = LlamaIndexService(
             document_service=document_service,
@@ -36,7 +40,7 @@ def blob_trigger(indexBlob: func.InputStream):
         )
         
         blob_client = __create_blob_client__(container_name, blob_name)
-        loader = __create_composite_loader__(blob_client)
+        loader = __create_composite_loader__(blob_client, llama_compat_llm)
         
         llama_index_service.index_documents(loader)
         
@@ -95,14 +99,20 @@ def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
         create_container=False
     )
 
-
 # Create the Azure Blob Loader
-def __create_composite_loader__(blob_client: BlobClient) -> AzStorageBlobReader:
+def __create_composite_loader__(
+    blob_client: BlobClient,
+    model: MultiModalLLM,
+    img_file_types: List[str]) -> AzStorageBlobReader:
 
     blob_properties = blob_client.get_blob_properties()
     logging.info(f"Creating Azure Blob Loader for container {blob_properties.container} and blob {blob_properties.name}.")
 
+    image_model_reader = ImageModelReader(model=model)
+    readers = dict(map(lambda type: (type, image_model_reader), img_file_types))
     blob_reader = AzStorageBlobReader(blob_client=blob_client)
+    blob_reader.file_extractor = blob_reader.file_extractor or {}
+    blob_reader.file_extractor.update(readers)
 
     pii_endpoint = os.environ["PIIEndpoint"]
     
@@ -137,6 +147,21 @@ def __create_llm__() -> AzureOpenAI:
         api_key=api_key,
         azure_endpoint=endpoint,
         api_version=api_version
+    )
+
+def __create_llama_compat_llm() -> MultiModalLLM:
+    from llama_index.multi_modal_llms.azure_openai import AzureOpenAIMultiModal
+    model_name: str = os.environ["OpenAIModelName"]
+    api_key: str = os.environ["OpenAIAPIKey"]
+    endpoint: str = os.environ["OpenAIEndpoint"]
+    api_version: str = os.environ["OpenAIAPIVersion"]
+    return AzureOpenAIMultiModal(
+        model=model_name,
+        azure_endpoint=endpoint,
+        api_key=api_key,
+        engine=model_name,
+        azure_deployment=model_name,
+        api_version=api_version,      
     )
 
 # Create the Azure OpenAI Embedding Model
