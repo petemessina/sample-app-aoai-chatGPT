@@ -68,7 +68,7 @@ class _ChatHistorySettings(BaseSettings):
 
 class _DocumentUploadSettings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_prefix="AZURE_COSMOSDB_",
+        env_prefix="DOCUMENT_UPLOAD_",
         env_file=DOTENV_PATH,
         extra="ignore",
         env_ignore_empty=True
@@ -80,6 +80,16 @@ class _DocumentUploadSettings(BaseSettings):
     document_chunks_container: str
     document_status_container: str
     enable_feedback: bool = False
+    valid_extensions: Optional[List[str]]
+    minimum_similarity_score: float
+
+    @field_validator('valid_extensions', mode="before")
+    @classmethod
+    def split_contexts(cls, comma_separated_string: str) -> List[str]:
+        if isinstance(comma_separated_string, str) and len(comma_separated_string) > 0:
+            return parse_multi_columns(comma_separated_string)
+        
+        return None
 
 class _StorageAccountSettings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -879,6 +889,5 @@ class _AppSettings(BaseModel):
         except ValidationError as e:
             logging.warning("No datasource configuration found in the environment -- calls will be made to Azure OpenAI without grounding data.")
             logging.warning(e.errors())
-
 
 app_settings = _AppSettings()

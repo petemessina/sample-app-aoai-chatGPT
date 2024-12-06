@@ -62,7 +62,6 @@ const Chat = () => {
   const [execResults, setExecResults] = useState<ExecResults[]>([]);
   const [processMessages, setProcessMessages] = useState<messageStatus>(messageStatus.NotRunning);
   const [clearingChat, setClearingChat] = useState<boolean>(false);
-  const [selectedUploadedDocuments, setSelectedUploadedDocuments] = useState<string[]>([]);
   const [hideErrorDialog, { toggle: toggleErrorDialog }] = useBoolean(true);
   const [errorMsg, setErrorMsg] = useState<ErrorMessage | null>();
   const [logo, setLogo] = useState('');
@@ -224,7 +223,7 @@ const Chat = () => {
 
     const request: ConversationRequest = {
       messages: [...conversation.messages.filter(answer => answer.role !== ERROR)],
-      ragMasterDocumentIds: selectedUploadedDocuments || []
+      ragMasterDocumentIds: appStateContext?.state.selectedUploadedDocuments || []
     }
 
     let result = {} as ChatResponse
@@ -339,13 +338,13 @@ const Chat = () => {
         conversation.messages.push(userMessage)
         request = {
           messages: [...conversation.messages.filter(answer => answer.role !== ERROR)],
-          ragMasterDocumentIds: selectedUploadedDocuments || []
+          ragMasterDocumentIds: appStateContext?.state.selectedUploadedDocuments || []
         }
       }
     } else {
       request = {
         messages: [userMessage].filter(answer => answer.role !== ERROR),
-        ragMasterDocumentIds: selectedUploadedDocuments || []
+        ragMasterDocumentIds: appStateContext?.state.selectedUploadedDocuments || []
       }
       setMessages(request.messages)
     }
@@ -644,7 +643,6 @@ const Chat = () => {
     }
 
     if(appStateContext?.state.currentChat?.id != currentConversationId) {
-      setSelectedUploadedDocuments([])
       setCurrentConversationId(appStateContext?.state.currentChat?.id)
     }
     
@@ -766,12 +764,6 @@ const Chat = () => {
       appStateContext?.state.chatHistoryLoadingState === ChatHistoryLoadingState.Loading
     )
   }
-
-  const handleSelectedUploadDocument = (itemId: string, isChecked: boolean) => {
-    setSelectedUploadedDocuments(prev =>
-      isChecked ? [...prev, itemId] : prev.filter(id => id !== itemId)
-    );
-  };
 
   return (
     <div className={styles.container} role="main">
@@ -1051,7 +1043,7 @@ const Chat = () => {
           {appStateContext?.state.isChatHistoryOpen &&
             appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured && <ChatHistoryPanel />}
           {appStateContext?.state.isUploadedDocumentsOpen &&
-            appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured && <DocumentListPanel conversationId={appStateContext?.state.currentChat?.id} handleSelectedUploadDocument={handleSelectedUploadDocument} />}
+            appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured && <DocumentListPanel conversationId={appStateContext?.state.currentChat?.id} />}
         </Stack>
       )}
     </div>

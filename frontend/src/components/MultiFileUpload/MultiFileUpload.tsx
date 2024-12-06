@@ -42,7 +42,7 @@ export const MultiFileUpload = ({ isModalOpen, conversationId, onModalDismiss }:
   const [conversationTitleErrorMessage, setConversationTitleErrorMessage] = useState('');
   const prevUploadingRef = useRef<boolean>(false);
   const prevUploading = prevUploadingRef.current;
-  const acceptedFileTypes = [".pdf", ".txt", ".csv", ".md", ".png" , ".jpeg", ".jpg"];
+  const acceptedFileTypes = appStateContext?.state.frontendSettings?.valid_document_extensions ?? [];
 
   useEffect(() => {
     prevUploadingRef.current = uploading;

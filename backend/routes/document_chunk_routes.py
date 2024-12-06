@@ -1,17 +1,27 @@
 import uuid
+
+from typing import List
 from quart import (Blueprint, jsonify, request)
 from azure.storage.blob import BlobServiceClient
+from pathlib import Path
 
 from backend.auth.auth_utils import get_authenticated_user_details
 from backend.context.document_status_context import DocumentStatusContext
 from backend.context.document_chunk_context import DocumentChunkContext
 
 class DocumentChunkRoutes:
-    def __init__(self, upload_container_client: BlobServiceClient, document_chunk_context: DocumentChunkContext, document_status_context: DocumentStatusContext):
+    def __init__(
+        self,
+        upload_container_client: BlobServiceClient,
+        document_chunk_context: DocumentChunkContext,
+        document_status_context: DocumentStatusContext,
+        valid_extensions: List[str]
+    ):
         self.blueprint = Blueprint('document_chunks', __name__)
         self._upload_container_client = upload_container_client
         self.document_chunk_context = document_chunk_context
         self.document_status_context = document_status_context
+        self.valid_extensions = valid_extensions
         self.register_routes()
 
     def register_routes(self):
@@ -33,6 +43,11 @@ class DocumentChunkRoutes:
                 return jsonify({'error': 'No selected file'})
             
             if file:
+                extension = Path(file.filename).suffix
+
+                if extension not in self.valid_extensions:
+                    return jsonify({'error': 'Invalid file extension'})
+                
                 authenticated_user = get_authenticated_user_details(request_headers=request.headers)
                 user_principal_id = authenticated_user["user_principal_id"]
                 user_name = authenticated_user["user_name"]

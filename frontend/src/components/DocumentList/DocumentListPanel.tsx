@@ -17,7 +17,6 @@ import styles from './DocumentListPanel.module.css'
 
 interface Props {
   conversationId?: string;
-  handleSelectedUploadDocument: (id: string, checked:boolean) => void;
 }
 
 export enum DocumentListPanelTabs {
@@ -33,13 +32,12 @@ const commandBarStyle: ICommandBarStyles = {
   }
 }
 
-export const DocumentListPanel: React.FC<Props> = ({conversationId, handleSelectedUploadDocument}) => {
+export const DocumentListPanel: React.FC<Props> = ({conversationId}) => {
   const appStateContext = useContext(AppStateContext);
   const [offset, setOffset] = useState<number>(25);
   const [maxPollingCount, setPollingCount] = useState<number>(30);
   const [observerCounter, setObserverCounter] = useState(0);
   const [filteredUploadedDocuments, setFilteredUploadedDocuments] = useState<UploadedDocument[]>([]);
-  const [selectedUploadedDocuments, setSelectedUploadedDocuments] = useState<string[]>([]);
   const [pendingDocumentStatuses, setPendingDocumentStatuses] = useState<Array<UploadedDocument>>([]);
   const [isPollingForStatus, setIsPollingForStatus] = useState<boolean>(false);
 
@@ -106,8 +104,6 @@ export const DocumentListPanel: React.FC<Props> = ({conversationId, handleSelect
   useEffect(() => {
     if(appStateContext?.state.currentChat?.id == conversationId) {
       const filteredDocuments = appStateContext?.state.uploadedDocuments?.filter(document => document.conversationId === appStateContext?.state.currentChat?.id) ?? [];
-
-      setSelectedUploadedDocuments([]);
       setFilteredUploadedDocuments(filteredDocuments)
     }
   }, [appStateContext?.state.currentChat]);
@@ -151,11 +147,7 @@ export const DocumentListPanel: React.FC<Props> = ({conversationId, handleSelect
   React.useEffect(() => {}, [appStateContext?.state.uploadedDocuments])
   
   const onSelectUploadDocument = (itemId: string, isChecked: boolean) => {
-    setSelectedUploadedDocuments(prev =>
-      isChecked ? [...prev, itemId] : prev.filter(id => id !== itemId)
-    );
-
-    handleSelectedUploadDocument(itemId, isChecked);
+    appStateContext?.dispatch({ type: 'UPDATE_SELECTED_DOCUMENTS', payload: [itemId, isChecked] });
   };
 
   return (
@@ -210,7 +202,7 @@ export const DocumentListPanel: React.FC<Props> = ({conversationId, handleSelect
           {appStateContext?.state.uploadedDocumentsLoadingState === UploadedDocumentLoadingState.Success &&
             appStateContext?.state.isCosmosDBAvailable.cosmosDB && <div>{filteredUploadedDocuments.map((item) => {
               return (
-                <DocumentListItem item={item} isSelected={selectedUploadedDocuments.includes(item.id)} onSelect={onSelectUploadDocument} />
+                <DocumentListItem item={item} isSelected={appStateContext.state.selectedUploadedDocuments.includes(item.id)} onSelect={onSelectUploadDocument} />
               )}
             )}</div>}
           {appStateContext?.state.uploadedDocumentsLoadingState === UploadedDocumentLoadingState.Fail &&
