@@ -9,5 +9,5 @@ testpaths = [
 pythonpath = [
     "./",
     "./backend",
-    "./content-loading"
+    "./content_loading"
 ]
