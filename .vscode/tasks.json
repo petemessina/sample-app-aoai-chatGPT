@@ -9,7 +9,7 @@
 			"isBackground": true,
 			"dependsOn": "pip install (functions)",
 			"options": {
-				"cwd": "${workspaceFolder}/content-loading"
+				"cwd": "${workspaceFolder}/content_loading"
 			}
 		},
 		{
@@ -27,7 +27,7 @@
 			"problemMatcher": [],
 			"dependsOn": "create and activate venv",
 			"options": {
-				"cwd": "${workspaceFolder}/content-loading"
+				"cwd": "${workspaceFolder}/content_loading"
 			}
 		},
 		{
@@ -44,7 +44,7 @@
 			},
 			"problemMatcher": [],
 			"options": {
-				"cwd": "${workspaceFolder}/content-loading"
+				"cwd": "${workspaceFolder}/content_loading"
 			}
 		}
 	]
