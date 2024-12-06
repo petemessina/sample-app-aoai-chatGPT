@@ -4,7 +4,7 @@
     "FUNCTIONS_WORKER_RUNTIME": "python",
     "CosmosDBEndpoint": "<cosmos db endpoint uri>",
     "CosmosDBDatabase": "db_conversation_history",
-    "CosmosDBContainer": "documents",
+    "CosmosDBContainer": "document_chunks",
     "CosmosDBDocumentStatusContainer": "document_status",
     "OpenAIAPIKey": "<openai api key>",
     "OpenAIEndpoint": "<openai endpoint uri>",

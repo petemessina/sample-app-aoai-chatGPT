@@ -45,7 +45,7 @@ def blob_trigger(indexBlob: func.InputStream):
         llama_index_service.index_documents(loader)
         
     except PIIDetectionError as e:
-        document_service.update_document_status(e.document.metadata["master_document_id"], e.document.metadata["user_principal_id"], "PII Detected")
+        document_service.update_document_status(e.document, "PII Detected")
 
         for entity in e.detected_entities:
             logging.error(f"PII Detected in document {blob_name}: {entity.category} with confidence {entity.confidence_score}")
@@ -113,6 +113,12 @@ def __create_composite_loader__(
     blob_reader = AzStorageBlobReader(blob_client=blob_client)
     blob_reader.file_extractor = blob_reader.file_extractor or {}
     blob_reader.file_extractor.update(readers)
+
+    model_name: str = os.environ["OpenAIModelName"]
+    api_key: str = os.environ["OpenAIAPIKey"]
+    endpoint: str = os.environ["OpenAIEndpoint"]
+    api_version: str = os.environ["OpenAIAPIVersion"]
+    
 
     pii_endpoint = os.environ["PIIEndpoint"]
     
