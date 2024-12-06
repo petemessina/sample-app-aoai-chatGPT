@@ -5,7 +5,7 @@ from llama_index.core.schema import Document
 from llama_index.core.readers.base import BaseReader, BasePydanticReader
 from PIIDetection import PIIDetectionError, PIIDetectedEntity
 
-class PIIServiceReaderFilter(BasePydanticReader):
+class CognitiveServicesPIIReaderFilter(BasePydanticReader):
     """Filter for ensuring that documents containing PII are not indexed.
 
     Args:
