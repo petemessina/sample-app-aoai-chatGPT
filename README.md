@@ -219,6 +219,32 @@ Note: RBAC assignments can take a few minutes before becoming effective.
     - `AZURE_OPENAI_EMBEDDING_NAME`: the name of your Ada (text-embedding-ada-002) model deployment on your Azure OpenAI resource.
     - `AZURE_COSMOSDB_MONGO_VCORE_VECTOR_COLUMNS`: the vector columns in your index to use when searching. Join them with `|` like `contentVector|titleVector`.
 
+#### Enable UI Upload using Azure Cosmos DB
+
+1. During a conversation, users can upload documents in near real-time, which are then chunked using LlamaIndex and stored in CosmosDB. This feature allows users to associate specific documents with a conversation rather than the entire experience. Documents are stored with a conversation ID, and when the chat history is cleared, the document status and chunks are also removed. During the chunking process, documents are evaluated for PII. If any configured entities are detected, the status is updated to 'PII detected,' and the document is removed from blob storage.
+
+![alt text](./assets/indexing.png "Indexing Architecture")
+
+2. To fully enable the UI based document upload there are a few required resources that need to be added to the environment. 
+    1. The chunking feature utilizes LlamaIndex and chunks content to two containers in CosmosDB.
+        1. **document_status** - You need to add a container called document_status to CosmosDB which is where the upload status will be kept track of during chunking. The partition for this container is ```/user_principal_id```.
+        2. **document_chunks** - Additionally, you need add the document_chunks container which is where the Azure function will store the vector documents from the output of the LlamaIndex chunking. The partition for this container is ```/metadata/user_principal_id```
+    1. For CosmosDB navigate to the account and select settings and features. Next enable the ```Vector Search for NoSQL API```
+     ![alt text](./assets/vectorui.png "Vector Feature")
+1. Configure the below settings for the function application to enable chunking.
+
+    | App Setting | Required? | Default Value | Note |
+    | --- | --- | --- | ------------- |
+    |DOCUMENT_UPLOAD_ACCOUNT|Yes||The name of the Azure Cosmos DB account used for storing uploaded document statuses and chunks|
+    |DOCUMENT_UPLOAD_DATABASE|Yes|db_conversation_history|The name of the Azure Cosmos DB database used for storing document statuses and chunks|
+    |DOCUMENT_UPLOAD_DOCUMENT_CHUNKS_CONTAINER|Yes|document_chunks|The name of the Azure Cosmos DB container used for storing document chunks|
+    |DOCUMENT_UPLOAD_DOCUMENT_STATUS_CONTAINER|Yes|document_status|The name of the Azure Cosmos DB container used for storing document statuses|
+    |DOCUMENT_UPLOAD_DOCUMENTS_CONTAINER|Yes|documents|The name of the Azure Storage Account container used for uploading documents|
+    |DOCUMENT_UPLOAD_ACCOUNT_KEY|Only if you are not using managed identity||The account key for the Azure Cosmos DB account used for storing uploaded document statuses and chunks|
+    |DOCUMENT_UPLOAD_ENABLE_FEEDBACK|No|False|Whether or not to enable message feedback on chat history messages|
+    |DOCUMENT_UPLOAD_VALID_EXTENSIONS|No|.pdf,.txt,.csv,.md,.png,.jpeg,.jpg|Used to restrict file uploads for the frontend and upload api|
+    |DOCUMENT_UPLOAD_MINIMUM_SIMILARITY_SCORE|No|0.3|Limits the documents to be above a specific threshold when queried|
+
 #### Chat with your data using Elasticsearch (Preview)
 
 1. Update the `AZURE_OPENAI_*` environment variables as described in the [basic chat experience](#basic-chat-experience) above. 

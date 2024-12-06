@@ -9,9 +9,7 @@ from azure.storage.blob import BlobClient
 
 from AzStorageBlobReader import AzStorageBlobReader
 from AzureCosmosDBNoSqlVectorSearch import AzureCosmosDBNoSqlVectorSearch
-from PresidioReaderFilter import PresidioReaderFilter
-from CognitiveServicesPIIReaderFilter import CognitiveServicesPIIReaderFilter
-from PIIDetection import PIIDetectionError
+from PIIServiceReaderFilter import PIIServiceReaderFilter, PIIDetectionError
 from llama_index_service import LlamaIndexService
 from DocumentService import DocumentService
 
@@ -43,7 +41,7 @@ def blob_trigger(indexBlob: func.InputStream):
         llama_index_service.index_documents(loader)
         
     except PIIDetectionError as e:
-        document_service.update_document_status(document=e.document, status="PII Detected")
+        document_service.update_document_status(e.document.metadata["master_document_id"], e.document.metadata["user_principal_id"], "PII Detected")
 
         for entity in e.detected_entities:
             logging.error(f"PII Detected in document {blob_name}: {entity.category} with confidence {entity.confidence_score}")
@@ -119,27 +117,12 @@ def __create_composite_loader__(blob_client: BlobClient) -> AzStorageBlobReader:
     except KeyError:
         min_confidence = DEFAULT_MIN_CONFIDENCE
 
-    DEFAULT_DETECTION_SOURCE = "AzureCognitiveServices"
-    try:
-        detection_source = os.environ["PIIDetectionSource"]
-    except KeyError:
-        detection_source = DEFAULT_DETECTION_SOURCE
-    
-    if detection_source == "AzureCognitiveServices":
-        pii_filter = CognitiveServicesPIIReaderFilter(
-            reader=blob_reader, 
-            endpoint=pii_endpoint,
-            pii_categories=pii_categories, 
-            min_confidence=min_confidence)
-    elif detection_source == "Presidio":
-        pii_filter = PresidioReaderFilter(
-            reader=blob_reader, 
-            endpoint=pii_endpoint,
-            pii_categories=pii_categories, 
-            min_confidence=min_confidence)
-    else:
-        raise ValueError(f"Invalid PII Detection Source: {detection_source}")
-    
+    pii_filter = PIIServiceReaderFilter(
+        reader=blob_reader, 
+        endpoint=pii_endpoint,
+        pii_categories=pii_categories, 
+        min_confidence=min_confidence)
+
     return pii_filter
 
 def __create_llm__() -> AzureOpenAI:

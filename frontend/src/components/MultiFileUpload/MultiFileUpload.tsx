@@ -34,9 +34,9 @@ interface Props {
 
 export const MultiFileUpload = ({ isModalOpen, conversationId, onModalDismiss }: Props) => {
   const appStateContext = useContext(AppStateContext)
-  const defaultMessages = { message: 'All files have been uploaded successfully', messageType: MessageBarType.success, isVisible: false };
+  const defaultMessageOptions = { message: 'All files have been uploaded successfully', messageType: MessageBarType.success, isVisible: false };
   const [uploadedFiles, setUploadedFiles] = useState<Array<FileDetails>>([]);
-  const [messageOptions, setMessageOptions] = useState<MessageOptions>(defaultMessages);
+  const [messageOptions, setMessageOptions] = useState<MessageOptions>(defaultMessageOptions);
   const [uploading, setUploading] = useState<boolean>(false);
   const [conversationTitle, setConversationTitle] = useState('');
   const [conversationTitleErrorMessage, setConversationTitleErrorMessage] = useState('');
@@ -152,6 +152,7 @@ export const MultiFileUpload = ({ isModalOpen, conversationId, onModalDismiss }:
       updateFileStatus(fileDetail.file.name, updatedStatus);
     }
 
+    setMessageOptions({ ...defaultMessageOptions });
     setUploading(false);
     setTimeout(() => {
       onModalClose();
@@ -176,7 +177,7 @@ export const MultiFileUpload = ({ isModalOpen, conversationId, onModalDismiss }:
   }
 
   const onModalClose = (ev?: React.MouseEvent<HTMLButtonElement | HTMLElement>) => {
-    setMessageOptions(defaultMessages);
+    setMessageOptions(defaultMessageOptions);
     setConversationTitle('');
     setUploadedFiles([]);
     onModalDismiss(ev);

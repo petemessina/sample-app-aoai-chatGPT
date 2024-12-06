@@ -4,8 +4,6 @@ from llama_index.core.settings import Settings
 from llama_index.core.vector_stores.types import VectorStore
 from llama_index.core.readers.base import BaseReader
 from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
-from llama_index.core.schema import Document
-
 from DocumentService import DocumentService
 
 class LlamaIndexService:
