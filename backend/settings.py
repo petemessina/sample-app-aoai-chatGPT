@@ -140,6 +140,7 @@ class _AzureOpenAISettings(BaseSettings):
     )
     
     model: str
+    deployment: str
     key: Optional[str] = None
     resource: Optional[str] = None
     endpoint: Optional[str] = None
@@ -161,7 +162,8 @@ class _AzureOpenAISettings(BaseSettings):
     embedding_endpoint: Optional[str] = None
     embedding_key: Optional[str] = None
     embedding_deployment_name: Optional[str] = None
-    
+    embedding_model: Optional[str] = None
+
     @field_validator('tools', mode='before')
     @classmethod
     def deserialize_tools(cls, tools_json_str: str) -> List[_AzureOpenAITool]:
