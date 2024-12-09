@@ -9,7 +9,7 @@ testpaths = [
 pythonpath = [
     "./",
     "./backend",
-    "./content-loading"
+    "./content_loading"
 ]
 [pytest]
 env_files = [".env"]
