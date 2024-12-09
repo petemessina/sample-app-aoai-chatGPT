@@ -2,7 +2,7 @@ import uuid
 
 from typing import List
 from quart import (Blueprint, jsonify, request)
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobServiceClient, BlobClient
 from pathlib import Path
 
 from backend.auth.auth_utils import get_authenticated_user_details
@@ -97,15 +97,21 @@ class DocumentChunkRoutes:
                 return jsonify({"error": "id is required"}), 400
 
             ## get the documents from cosmos
-            documents = await self.document_status_context.delete_document(
+            document = await self.document_status_context.delete_document(
                 user_id, id
             )
             
-            if not isinstance(documents, list):
-                return jsonify({"error": f"No documents was deleted"}), 404
+            blob_client: BlobClient = self._upload_container_client.get_blob_client(f"{document['conversation_id']}/{document['file_name']}")
+            doesBlobStilExist: bool = await blob_client.exists()
+
+            if(doesBlobStilExist):
+                await blob_client.delete_blob()
+
+            if not document:
+                return jsonify({"error": f"No documents were deleted"}), 404
 
             ## return the documents
-            return jsonify(documents), 200
+            return jsonify(document), 200
 
         @self.blueprint.route("/documents/list", methods=["GET"])
         async def list_uploaded_documents():

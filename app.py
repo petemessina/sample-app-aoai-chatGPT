@@ -198,7 +198,7 @@ async def init_openai_client():
             )
 
         # Deployment
-        deployment = app_settings.azure_openai.model
+        deployment = app_settings.azure_openai.deployment
         if not deployment:
             raise ValueError("AZURE_OPENAI_MODEL is required")
 
@@ -234,7 +234,7 @@ async def search_cosmos_documents(openAIclient: AsyncAzureOpenAI, user_id: str, 
 async def create_embedding(client: AsyncAzureOpenAI, text: str):
     response = await client.embeddings.create(
         input=[text],
-        model=app_settings.azure_openai.embedding_name
+        model=app_settings.azure_openai.embedding_deployment_name
     )
 
     embedding = response.model_dump()['data'][0]['embedding']
@@ -327,7 +327,7 @@ def prepare_model_args(request_body, request_headers, documents):
         "top_p": app_settings.azure_openai.top_p,
         "stop": app_settings.azure_openai.stop_sequence,
         "stream": app_settings.azure_openai.stream,
-        "model": app_settings.azure_openai.model,
+        "model": app_settings.azure_openai.deployment,
         "user": user_json
     }
 
