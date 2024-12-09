@@ -29,7 +29,8 @@
     "PIICategories": "Person,Email,PhoneNumber,Address,USSocialSecurityNumber,CreditCardNumber",
   // The minimum confidence level for discovered PII entities to be cause the document to be rejected
   // Scale from 0.0 to 1.0
-    "PIIMinimumConfidence": 0.7
+    "PIIMinimumConfidence": 0.7,
+    "SupportedImageFileTypes": ".jpeg,.jpg,.png"
   },
   "ConnectionStrings": {}
 }

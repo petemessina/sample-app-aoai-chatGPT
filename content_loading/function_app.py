@@ -12,7 +12,7 @@ from azure.storage.blob import BlobClient
 from AzStorageBlobReader import AzStorageBlobReader
 from AzureCosmosDBNoSqlVectorSearch import AzureCosmosDBNoSqlVectorSearch
 from PIIServiceReaderFilter import PIIServiceReaderFilter, PIIDetectionError
-from content_loading.image_model_reader import ImageModelReader
+from image_model_reader import ImageModelReader
 from llama_index_service import LlamaIndexService
 from DocumentService import DocumentService
 
@@ -22,12 +22,12 @@ app = func.FunctionApp()
 def blob_trigger(indexBlob: func.InputStream):
     logging.info(f"Indexing blob: {indexBlob.name}")
     
-    document_status_container_client = __create_status_container_proxy()
-    document_service: DocumentService = DocumentService(document_status_container_client)
-    
     try:
         blob_name: str = indexBlob.name.split("/")[-1]
         container_name = ''.join(indexBlob.name.rsplit('/', 1)[:-1])
+        blob_client = __create_blob_client__(container_name, blob_name)
+        document_status_container_client = __create_status_container_proxy()
+        document_service: DocumentService = DocumentService(document_status_container_client)
         vector_store = __create_vector_store__()
         llm = __create_llm__()
         llama_compat_llm = __create_llama_compat_llm()
@@ -39,8 +39,8 @@ def blob_trigger(indexBlob: func.InputStream):
             embed_model=embed_model
         )
         
-        blob_client = __create_blob_client__(container_name, blob_name)
-        loader = __create_composite_loader__(blob_client, llama_compat_llm)
+        image_file_types: List[str] = os.environ["SupportedImageFileTypes"].split(",")
+        loader = __create_composite_loader__(blob_client, llama_compat_llm, image_file_types)
         
         llama_index_service.index_documents(loader)
         
@@ -63,9 +63,13 @@ def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
     endpoint = os.environ["CosmosDBEndpoint"]
     database_name = os.environ["CosmosDBDatabase"]
     container_name = os.environ["CosmosDBContainer"]
-    credential = DefaultAzureCredential()
+    credential = os.getenv("CosmosDBKey")
 
     # Create the Cosmos client
+
+    if not credential:
+        credential = DefaultAzureCredential()
+
     client = CosmosClient(endpoint, credential)
     partition_key = PartitionKey(path="/userId")
     cosmos_database_properties = {}
@@ -113,13 +117,6 @@ def __create_composite_loader__(
     blob_reader = AzStorageBlobReader(blob_client=blob_client)
     blob_reader.file_extractor = blob_reader.file_extractor or {}
     blob_reader.file_extractor.update(readers)
-
-    model_name: str = os.environ["OpenAIModelName"]
-    api_key: str = os.environ["OpenAIAPIKey"]
-    endpoint: str = os.environ["OpenAIEndpoint"]
-    api_version: str = os.environ["OpenAIAPIVersion"]
-    
-
     pii_endpoint = os.environ["PIIEndpoint"]
     
     try:
@@ -133,6 +130,7 @@ def __create_composite_loader__(
     except KeyError:
         min_confidence = DEFAULT_MIN_CONFIDENCE
 
+    
     pii_filter = PIIServiceReaderFilter(
         reader=blob_reader, 
         endpoint=pii_endpoint,
@@ -143,13 +141,14 @@ def __create_composite_loader__(
 
 def __create_llm__() -> AzureOpenAI:
     model_name: str = os.environ["OpenAIModelName"]
+    deployment_name: str = os.environ["OpenAIDeploymentName"]
     api_key: str = os.environ["OpenAIAPIKey"]
     endpoint: str = os.environ["OpenAIEndpoint"]
     api_version: str = os.environ["OpenAIAPIVersion"]
 
     return AzureOpenAI(
         model=model_name,
-        deployment_name=model_name,
+        deployment_name=deployment_name,
         api_key=api_key,
         azure_endpoint=endpoint,
         api_version=api_version
@@ -157,16 +156,19 @@ def __create_llm__() -> AzureOpenAI:
 
 def __create_llama_compat_llm() -> MultiModalLLM:
     from llama_index.multi_modal_llms.azure_openai import AzureOpenAIMultiModal
+
     model_name: str = os.environ["OpenAIModelName"]
+    deployment_name: str = os.environ["OpenAIDeploymentName"]
     api_key: str = os.environ["OpenAIAPIKey"]
     endpoint: str = os.environ["OpenAIEndpoint"]
     api_version: str = os.environ["OpenAIAPIVersion"]
+
     return AzureOpenAIMultiModal(
         model=model_name,
         azure_endpoint=endpoint,
         api_key=api_key,
         engine=model_name,
-        azure_deployment=model_name,
+        azure_deployment=deployment_name,
         api_version=api_version,      
     )
 
@@ -176,12 +178,13 @@ def __create_embedding_model__() -> AzureOpenAIEmbedding:
     aoai_endpoint: str = os.environ["OpenAIEndpoint"]
     aoai_api_version: str = os.environ["OpenAIAPIVersion"]
     aoai_embedding_model_name: str = os.environ["OpenAIEmbeddingModelName"]
+    aoai_embedding_deployment_name: str = os.environ["OpenAIEmbeddingDeploymentName"]
 
     logging.info(f"Creating Azure OpenAI Embedding Model: {aoai_embedding_model_name}")
 
     embed_model = AzureOpenAIEmbedding(
         model=aoai_embedding_model_name,
-        deployment_name=aoai_embedding_model_name,
+        deployment_name=aoai_embedding_deployment_name,
         api_key=aoai_api_key,
         azure_endpoint=aoai_endpoint,
         api_version=aoai_api_version,

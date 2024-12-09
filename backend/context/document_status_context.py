@@ -2,6 +2,7 @@ from typing import Dict
 import uuid
 from datetime import datetime, timezone
 from azure.core.credentials_async import AsyncTokenCredential
+from azure.cosmos import PartitionKey
 
 from backend.context.cosmos_db_context import CosmosDBContext
 from backend.context.document_chunk_context import DocumentChunkContext
@@ -11,6 +12,14 @@ class DocumentStatusContext(CosmosDBContext):
         self.__document_chunk_context = document_chunk_context
         super().__init__(cosmosdb_endpoint, credential, database_name, container_name)
         
+    async def get_documents_status(self, user_id: str, masterDocumentId: str):
+        item = await self.client_container.read_item(
+                item=masterDocumentId,
+                partition_key=user_id
+            )
+
+        return item
+    
     async def get_documents_statuses(self, user_id: str, masterDocumentIds: list[str]):
         documents = []
         query = "SELECT c.id, c.status, c.conversation_id, c.file_name FROM c WHERE ARRAY_CONTAINS(@ids, c.id) AND c.user_principal_id = @userId"
@@ -77,9 +86,10 @@ class DocumentStatusContext(CosmosDBContext):
         return response_list
     
     async def delete_document(self, user_id, document_id):
-        response_list = []
 
+        document = await self.get_documents_status(user_id=user_id, masterDocumentId=document_id)
+        
         await self.client_container.delete_item(item=document_id, partition_key=user_id)
-        response_list = await self.__document_chunk_context.delete_document_chunks(user_id, document_id)
+        await self.__document_chunk_context.delete_document_chunks(user_id, document_id)
 
-        return response_list
+        return document

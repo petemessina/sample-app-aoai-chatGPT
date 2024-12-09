@@ -160,7 +160,7 @@ class _AzureOpenAISettings(BaseSettings):
     preview_api_version: str = MINIMUM_SUPPORTED_AZURE_OPENAI_PREVIEW_API_VERSION
     embedding_endpoint: Optional[str] = None
     embedding_key: Optional[str] = None
-    embedding_name: Optional[str] = None
+    embedding_deployment_name: Optional[str] = None
     
     @field_validator('tools', mode='before')
     @classmethod

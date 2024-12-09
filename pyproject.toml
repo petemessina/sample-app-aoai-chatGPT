@@ -11,3 +11,5 @@ pythonpath = [
     "./backend",
     "./content-loading"
 ]
+[pytest]
+env_files = [".env"]

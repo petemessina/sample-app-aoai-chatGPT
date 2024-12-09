@@ -1,5 +1,5 @@
 -r requirements.txt
--r ./content-loading/requirements.txt
+-r ./content_loading/requirements.txt
 azure-ai-documentintelligence==1.0.0b2
 Markdown==3.4.4
 requests==2.31.0
@@ -14,3 +14,4 @@ PyMuPDF==1.24.5
 chardet
 azure-keyvault-secrets
 coverage
+pytest-dotenv
