@@ -22,6 +22,7 @@
     "DOCUMENT_STORAGE_ACCOUNT__blobServiceUri": "<storage account blob service uri>",
     "DOCUMENT_STORAGE_ACCOUNT__queueServiceUri": "<storage account queue service uri>",
     "StorageAccountName": "<storage account name>",
+    "StorageAccountKey": "<storage account key>",
     "PIIEndpoint": "<cognitive services endpoint uri>",
   // The PII categories that will cause the document to be rejected and not indexed
   // Remove this line to allow all PII categories

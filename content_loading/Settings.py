@@ -31,7 +31,7 @@ class OpenAISettings(BaseSettings):
 class StorageSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix='StorageAccount', extra='ignore')
     accountName: str = Field(validation_alias='StorageAccountName')
-    connectionString: Optional[str] = None
+    key: Optional[str] = None
 
 class PIISettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix='PII', extra='ignore')
