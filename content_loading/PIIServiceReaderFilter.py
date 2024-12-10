@@ -1,4 +1,3 @@
-import os
 from azure.ai.textanalytics import TextAnalyticsClient, PiiEntity
 from azure.identity import DefaultAzureCredential
 from typing import Any, Dict, List, Optional, Union
