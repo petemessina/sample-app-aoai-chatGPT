@@ -62,12 +62,19 @@ export const appStateReducer = (state: AppState, action: Action): AppState => {
     
       const currentPendingDocuments = [...state.pendingDocuments];
       const currentUploadedDocuments = [...state.uploadedDocuments];
-    
+      // Add any statuses here to stop the polling process and remove pending documents.
+      const finalStatuses = [
+        DocumentStatusState.Indexed,
+        DocumentStatusState.Failed,
+        DocumentStatusState.PollingTimeout,
+        DocumentStatusState.PiiDetected
+      ];
+
       action.payload.forEach(document => {
         const pendingDocumentIndex = currentPendingDocuments.findIndex(conv => conv.id === document.id);
         const uploadedDocumentIndex = currentUploadedDocuments.findIndex(conv => conv.id === document.id);
     
-        if (pendingDocumentIndex !== -1 && (document.status === DocumentStatusState.Indexed || document.status === DocumentStatusState.Failed || document.status === DocumentStatusState.PollingTimeout || document.status === DocumentStatusState.PiiDetected)) {
+        if (pendingDocumentIndex !== -1 && finalStatuses.includes(document.status)) {
           currentPendingDocuments.splice(pendingDocumentIndex, 1);
         } else {
           if (pendingDocumentIndex !== -1) {
