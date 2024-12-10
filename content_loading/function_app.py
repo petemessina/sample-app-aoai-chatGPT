@@ -216,7 +216,10 @@ def __create_status_container_proxy() -> ContainerProxy:
     endpoint = os.environ["CosmosDBEndpoint"]
     database_name = os.environ["CosmosDBDatabase"]
     container_name = os.environ["CosmosDBDocumentStatusContainer"]
-    credential = DefaultAzureCredential()
+    credential = os.getenv("CosmosDBKey")
+
+    if not credential:
+        credential = DefaultAzureCredential()
 
     # Create the Cosmos client
     client = CosmosClient(endpoint, credential)
