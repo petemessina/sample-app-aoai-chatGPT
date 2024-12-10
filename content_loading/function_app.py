@@ -1,13 +1,13 @@
 import os
-from typing import List
-import azure.functions as func
 import logging
-from llama_index.core.multi_modal_llms import MultiModalLLM
-from llama_index.llms.azure_openai import AzureOpenAI
-from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
+import azure.functions as func
+
 from azure.cosmos import CosmosClient, ContainerProxy, PartitionKey
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobClient
+from llama_index.llms.azure_openai import AzureOpenAI
+from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
+from typing import List
 
 from AzStorageBlobReader import AzStorageBlobReader
 from AzureCosmosDBNoSqlVectorSearch import AzureCosmosDBNoSqlVectorSearch
@@ -30,7 +30,7 @@ def blob_trigger(indexBlob: func.InputStream):
         document_service: DocumentService = DocumentService(document_status_container_client)
         vector_store = __create_vector_store__()
         llm = __create_llm__()
-        llama_compat_llm = __create_llama_compat_llm()
+        openai_client = __create_openai_client()
         embed_model = __create_embedding_model__()
         llama_index_service: LlamaIndexService = LlamaIndexService(
             document_service=document_service,
@@ -40,7 +40,7 @@ def blob_trigger(indexBlob: func.InputStream):
         )
         
         image_file_types: List[str] = os.environ["SupportedImageFileTypes"].split(",")
-        loader = __create_composite_loader__(blob_client, llama_compat_llm, image_file_types)
+        loader = __create_composite_loader__(blob_client, openai_client, image_file_types)
         
         llama_index_service.index_documents(loader)
         
@@ -106,13 +106,13 @@ def __create_vector_store__() -> AzureCosmosDBNoSqlVectorSearch:
 # Create the Azure Blob Loader
 def __create_composite_loader__(
     blob_client: BlobClient,
-    model: MultiModalLLM,
+    openai_client: AzureOpenAI,
     img_file_types: List[str]) -> AzStorageBlobReader:
 
     blob_properties = blob_client.get_blob_properties()
     logging.info(f"Creating Azure Blob Loader for container {blob_properties.container} and blob {blob_properties.name}.")
 
-    image_model_reader = ImageModelReader(model=model)
+    image_model_reader = ImageModelReader(openai_client=openai_client)
     readers = dict(map(lambda type: (type, image_model_reader), img_file_types))
     blob_reader = AzStorageBlobReader(blob_client=blob_client)
     blob_reader.file_extractor = blob_reader.file_extractor or {}
@@ -154,22 +154,19 @@ def __create_llm__() -> AzureOpenAI:
         api_version=api_version
     )
 
-def __create_llama_compat_llm() -> MultiModalLLM:
-    from llama_index.multi_modal_llms.azure_openai import AzureOpenAIMultiModal
+def __create_openai_client() -> AzureOpenAI:
+    from openai import AzureOpenAI
 
-    model_name: str = os.environ["OpenAIModelName"]
     deployment_name: str = os.environ["OpenAIDeploymentName"]
     api_key: str = os.environ["OpenAIAPIKey"]
     endpoint: str = os.environ["OpenAIEndpoint"]
     api_version: str = os.environ["OpenAIAPIVersion"]
 
-    return AzureOpenAIMultiModal(
-        model=model_name,
+    return AzureOpenAI(
         azure_endpoint=endpoint,
-        api_key=api_key,
-        engine=model_name,
         azure_deployment=deployment_name,
-        api_version=api_version,      
+        api_version=api_version ,
+        api_key=api_key
     )
 
 # Create the Azure OpenAI Embedding Model
@@ -219,7 +216,10 @@ def __create_status_container_proxy() -> ContainerProxy:
     endpoint = os.environ["CosmosDBEndpoint"]
     database_name = os.environ["CosmosDBDatabase"]
     container_name = os.environ["CosmosDBDocumentStatusContainer"]
-    credential = DefaultAzureCredential()
+    credential = os.getenv("CosmosDBKey")
+
+    if not credential:
+        credential = DefaultAzureCredential()
 
     # Create the Cosmos client
     client = CosmosClient(endpoint, credential)
