@@ -143,7 +143,8 @@ export enum DocumentStatusState {
   Uploading = 'Uploading',
   Uploaded = 'Uploaded',
   Failed = 'Failed',
-  PollingTimeout = 'PollingTimeout'
+  PollingTimeout = 'Polling Timeout',
+  PiiDetected = 'PII Detected'
 }
 
 export type ErrorMessage = {

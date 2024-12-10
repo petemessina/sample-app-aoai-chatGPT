@@ -1,6 +1,6 @@
 azure-identity==1.17.0
 # Flask[async]==2.3.2
-openai==1.56.0
+openai==1.57.1
 azure-search-documents==11.4.0b6
 python-dotenv==1.0.0
 azure-cosmos==4.9.0

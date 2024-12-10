@@ -1,13 +1,12 @@
 from typing import List
 import azure.functions as func
 import logging
-from llama_index.core.multi_modal_llms import MultiModalLLM
-from llama_index.multi_modal_llms.azure_openai import AzureOpenAIMultiModal
 
-from llama_index.llms.azure_openai import AzureOpenAI
-from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
 from azure.cosmos import CosmosClient, ContainerProxy, PartitionKey
 from azure.storage.blob import BlobClient
+from llama_index.llms.azure_openai import AzureOpenAI
+from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
+from typing import List
 
 from Settings import ContentLoadingSettings, CosmosSettings, OpenAISettings, StorageSettings, PIISettings, ImageSettings
 from Credentials import ContentLoadingCredentials
@@ -35,11 +34,10 @@ def blob_trigger(indexBlob: func.InputStream):
 
         document_status_container_client = __create_status_container_proxy(config.cosmos, auth)
         document_service: DocumentService = DocumentService(document_status_container_client)
-
         vector_store = __create_vector_store__(config.cosmos, auth)
 
         llm = __create_llm__(config.openai, auth)
-        llama_compat_llm = __create_llama_compat_llm(config.openai, auth)
+        openai_client = __create_openai_client(config.openai, auth)
         embed_model = __create_embedding_model__(config.openai, auth)
         llama_index_service: LlamaIndexService = LlamaIndexService(
             document_service=document_service,
@@ -49,7 +47,7 @@ def blob_trigger(indexBlob: func.InputStream):
         )
         
         image_file_types: List[str] = config.image.fileTypes.split(",")
-        loader = __create_composite_loader__(blob_client, llama_compat_llm, image_file_types, config.pii, auth)
+        loader = __create_composite_loader__(blob_client, openai_client, image_file_types, config.pii, auth)
         
         llama_index_service.index_documents(loader)
         
@@ -108,7 +106,7 @@ def __create_vector_store__(cosmosConfig: CosmosSettings, auth: ContentLoadingCr
 # Create the Azure Blob Loader
 def __create_composite_loader__(
     blob_client: BlobClient,
-    model: MultiModalLLM,
+    openai_client: AzureOpenAI,
     img_file_types: List[str],
     piiConfig: PIISettings,
     auth: ContentLoadingCredentials) -> AzStorageBlobReader:
@@ -116,7 +114,7 @@ def __create_composite_loader__(
     blob_properties = blob_client.get_blob_properties()
     logging.info(f"Creating Azure Blob Loader for container {blob_properties.container} and blob {blob_properties.name}.")
 
-    image_model_reader = ImageModelReader(model=model)
+    image_model_reader = ImageModelReader(openai_client=openai_client)
     readers = dict(map(lambda type: (type, image_model_reader), img_file_types))
     blob_reader = AzStorageBlobReader(blob_client=blob_client)
     blob_reader.file_extractor = blob_reader.file_extractor or {}
@@ -160,10 +158,10 @@ def __create_llm__(openaiConfig: OpenAISettings, auth: ContentLoadingCredentials
 
     return AzureOpenAI(**kwargs)
 
-def __create_llama_compat_llm(openaiConfig: OpenAISettings, auth: ContentLoadingCredentials) -> MultiModalLLM:
+def __create_openai_client(openaiConfig: OpenAISettings, auth: ContentLoadingCredentials) -> AzureOpenAI:
 
     logging.info(f"Creating Azure OpenAI MultiModal Model: {openaiConfig.modelName}")
-    kwargs = { "model": openaiConfig.modelName,
+    kwargs = { 
             "azure_deployment": openaiConfig.modelDeployment,
             "azure_endpoint": openaiConfig.endpoint,
             "api_version": openaiConfig.apiVersion }
@@ -174,7 +172,7 @@ def __create_llama_compat_llm(openaiConfig: OpenAISettings, auth: ContentLoading
         kwargs["azure_ad_token_provider"] = auth.openai_token_provider
         kwargs["use_azure_ad"] = True
 
-    return AzureOpenAIMultiModal(**kwargs)
+    return AzureOpenAI(**kwargs)
 
 # Create the Azure OpenAI Embedding Model
 def __create_embedding_model__(openaiConfig: OpenAISettings, auth: ContentLoadingCredentials) -> AzureOpenAIEmbedding:
