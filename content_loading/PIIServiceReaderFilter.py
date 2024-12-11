@@ -1,6 +1,5 @@
-import os
 from azure.ai.textanalytics import TextAnalyticsClient, PiiEntity
-from azure.identity import DefaultAzureCredential
+from Credentials import ContentLoadingCredentials
 from typing import Any, Dict, List, Optional, Union
 from llama_index.core.schema import Document
 from llama_index.core.readers.base import BaseReader, BasePydanticReader
@@ -16,6 +15,7 @@ class PIIServiceReaderFilter(BasePydanticReader):
     endpoint: str
     pii_categories: Optional[List[str]] = None
     min_confidence: float = 0.8
+    credentials: ContentLoadingCredentials
     
     def load_data(self) -> List[Document]:
         """Load the data from the reader and filter out any documents containing PII.
@@ -40,9 +40,8 @@ class PIIServiceReaderFilter(BasePydanticReader):
         Returns:
             bool: True if the document contains PII, False otherwise.
         """
-        credential = DefaultAzureCredential()
 
-        client = TextAnalyticsClient(endpoint=self.endpoint, credential=credential)
+        client = TextAnalyticsClient(endpoint=self.endpoint, credential=self.credentials.pii_credential)
         response = client.recognize_pii_entities([document.text], language="en", categories_filter=self.pii_categories)
         
         result = [doc for doc in response if not doc.is_error]
