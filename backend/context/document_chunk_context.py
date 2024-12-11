@@ -9,7 +9,7 @@ class DocumentChunkContext(CosmosDBContext):
 
     async def get_documents_by_master_ids(self, user_id: str, ragMasterDocumentIds: list[str], embeddings: list[float]):
         documents = []
-        query=f"""SELECT TOP 10 c.text, c.payload, VectorDistance(c.contentVector, @embedding) AS SimilarityScore FROM c WHERE ARRAY_CONTAINS(@ids, c.metadata.master_document_id) AND c.metadata.user_principal_id = @userId ORDER BY VectorDistance(c.contentVector, @embedding)"""
+        query=f"""SELECT TOP 10 c.metadata.file_name as file_name, c.text, c.payload, VectorDistance(c.contentVector, @embedding) AS SimilarityScore FROM c WHERE ARRAY_CONTAINS(@ids, c.metadata.master_document_id) AND c.metadata.user_principal_id = @userId ORDER BY VectorDistance(c.contentVector, @embedding)"""
 
         async for item in self.client_container.query_items(
                 query=query,

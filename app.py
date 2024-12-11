@@ -5,6 +5,7 @@ import logging
 import uuid
 import httpx
 import asyncio
+from itertools import groupby
 from azure.storage.blob.aio import BlobServiceClient, BlobClient, ContainerClient
 from quart import (
     Blueprint,
@@ -285,14 +286,14 @@ def prepare_model_args(request_body, request_headers, documents):
             }
         ]
 
-    for document in documents:
-        documentText = document['text']
+    if len(documents) > 0:
+        document_text: str = __prep_document_text__(documents)
         messages.append(
-            {
-                "role": "assistant",
-                "content": documentText
-            }
-        )
+                {
+                    "role": "assistant",
+                    "content": document_text
+                }
+            )
     
     for message in request_messages:
         if message:
@@ -378,6 +379,19 @@ def prepare_model_args(request_body, request_headers, documents):
 
     return model_args
 
+def __prep_document_text__(documents):
+    grouped_documents = [list(result) for key, result in groupby(documents, key=lambda document: document['file_name'])]
+    document_text = "# File Context\n"
+
+    for documents in grouped_documents:
+        document_text = f"{document_text}\n## File Name:{documents[0]['file_name']}\n```text"
+    
+        for document in documents:
+            document_text = f"{document_text}\n{document['text']}"
+        
+    document_text = f"{document_text}\n```"
+
+    return document_text
 
 async def promptflow_request(request):
     try:
