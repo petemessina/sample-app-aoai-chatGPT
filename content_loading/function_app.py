@@ -146,7 +146,7 @@ def __create_llm__(openaiConfig: OpenAISettings, auth: ContentLoadingCredentials
     logging.info(f"Creating Azure OpenAI Model: {openaiConfig.modelName}")
 
     kwargs = { "model": openaiConfig.modelName,
-                "deployment_name": openaiConfig.modelDeployment,
+                "deployment_name": openaiConfig.deploymentName,
                 "azure_endpoint": openaiConfig.endpoint,
                 "api_version": openaiConfig.apiVersion }
 
@@ -162,7 +162,7 @@ def __create_openai_client(openaiConfig: OpenAISettings, auth: ContentLoadingCre
 
     logging.info(f"Creating Azure OpenAI MultiModal Model: {openaiConfig.modelName}")
     kwargs = { 
-            "azure_deployment": openaiConfig.modelDeployment,
+            "azure_deployment": openaiConfig.deploymentName,
             "azure_endpoint": openaiConfig.endpoint,
             "api_version": openaiConfig.apiVersion }
 
@@ -180,7 +180,7 @@ def __create_embedding_model__(openaiConfig: OpenAISettings, auth: ContentLoadin
 
     kwargs = { 
         "model": openaiConfig.embeddingModelName,
-        "deployment_name": openaiConfig.embeddingModelDeployment,
+        "deployment_name": openaiConfig.embeddingDeploymentName,
         "azure_endpoint": openaiConfig.endpoint,
         "api_version": openaiConfig.apiVersion }
     

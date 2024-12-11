@@ -549,13 +549,13 @@ async def add_conversation():
         # check for the conversation_id, if the conversation is not set, we will create a new one
         history_metadata = {}
         if not conversation_id:
-            conversation_id = await generate_conversation_placeholder(request)
             title = await generate_title(request_json["messages"])
         
             conversation_dict = await current_app.cosmos_client.create_conversation(
                 user_id=user_id, title=title
             )
 
+            conversation_id = conversation_dict["id"]
             history_metadata["title"] = title
             history_metadata["date"] = conversation_dict["createdAt"]
 
