@@ -74,7 +74,7 @@ class AzStorageBlobReader(
         with open(file=download_file_path, mode="wb") as download_file:
             stream.readinto(download_file)
 
-        blob_meta[sanitized_file_name] = self.blob_properties.metadata
+        blob_meta[sanitized_file_name] = self._extract_blob_metadata(self.blob_properties)
         end_time = time.time()
         logger.debug(
             f"{sanitized_file_name} downloaded in {end_time - start_time} seconds."
@@ -127,7 +127,7 @@ class AzStorageBlobReader(
             temp_dir, 
             file_extractor=self.file_extractor, 
             input_files=[os.path.join(temp_dir, self.blob_properties.name)], 
-            file_metadata=get_metadata
+            file_metadata=get_metadata,
         )
 
         return loader.load_data()
