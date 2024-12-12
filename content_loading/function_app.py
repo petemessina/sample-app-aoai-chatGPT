@@ -53,9 +53,10 @@ def blob_trigger(indexBlob: func.InputStream):
         
     except PIIDetectionError as e:
         document_service.update_document_status(e.document, "PII Detected")
+        user = e.document.metadata.get("author", "Unknown")
 
         for entity in e.detected_entities:
-            logging.error(f"PII Detected in document {blob_name}: {entity.category} with confidence {entity.confidence_score}")
+            logging.error(f"PII Detected in document {blob_name} uploaded by {user}: {entity.category} with confidence {entity.confidence_score}")
     except Exception as e:
         logging.error(f"Error indexing blob: {e}")
         raise e
