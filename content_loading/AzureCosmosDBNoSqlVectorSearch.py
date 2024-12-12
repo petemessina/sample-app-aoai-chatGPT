@@ -275,9 +275,12 @@ class AzureCosmosDBNoSqlVectorSearch(BasePydanticVectorStore):
             raise Exception("Texts can not be null or empty")
 
         for node in nodes:
-            metadata = node_to_metadata_dict(
-                node, remove_text=True, flat_metadata=self.flat_metadata
-            )
+            node_dict = node.dict()
+            metadata: Dict[str, Any] = node_dict.get("metadata", {})
+
+            metadata["document_id"] = node.ref_doc_id or "None"
+            metadata["doc_id"] = node.ref_doc_id or "None"
+            metadata["ref_doc_id"] = node.ref_doc_id or "None"
 
             entry = {
                 self._id_key: node.node_id,
@@ -286,6 +289,7 @@ class AzureCosmosDBNoSqlVectorSearch(BasePydanticVectorStore):
                 self._metadata_key: metadata,
                 "timeStamp": date.today().isoformat(),
             }
+            
             data_to_insert.append(entry)
             ids.append(node.node_id)
 

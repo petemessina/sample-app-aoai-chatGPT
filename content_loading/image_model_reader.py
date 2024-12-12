@@ -78,7 +78,6 @@ class ImageModelReader(BaseReader):
         return [
             ImageDocument(
                 text=completion.choices[0].message.content,
-                image=image_document.image,
                 image_path=image_document.image_path,
                 image_url=image_document.image_url,
                 metadata=extra_info,
