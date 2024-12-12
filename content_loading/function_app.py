@@ -4,8 +4,10 @@ import logging
 
 from azure.cosmos import CosmosClient, ContainerProxy, PartitionKey
 from azure.storage.blob import BlobClient
-from llama_index.llms.azure_openai import AzureOpenAI
+from llama_index.llms.azure_openai import AzureOpenAI as LlamaIndexAzureOpenAI
 from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
+from openai import AzureOpenAI
+
 from typing import List
 
 from Settings import ContentLoadingSettings, CosmosSettings, OpenAISettings, StorageSettings, PIISettings, ImageSettings
@@ -107,7 +109,7 @@ def __create_vector_store__(cosmosConfig: CosmosSettings, auth: ContentLoadingCr
 # Create the Azure Blob Loader
 def __create_composite_loader__(
     blob_client: BlobClient,
-    openai_client: AzureOpenAI,
+    openai_client: LlamaIndexAzureOpenAI,
     img_file_types: List[str],
     piiConfig: PIISettings,
     auth: ContentLoadingCredentials) -> AzStorageBlobReader:
@@ -143,7 +145,7 @@ def __create_composite_loader__(
 
     return pii_filter
 
-def __create_llm__(openaiConfig: OpenAISettings, auth: ContentLoadingCredentials) -> AzureOpenAI:
+def __create_llm__(openaiConfig: OpenAISettings, auth: ContentLoadingCredentials) -> LlamaIndexAzureOpenAI:
     logging.info(f"Creating Azure OpenAI Model: {openaiConfig.modelName}")
 
     kwargs = { "model": openaiConfig.modelName,
@@ -157,7 +159,7 @@ def __create_llm__(openaiConfig: OpenAISettings, auth: ContentLoadingCredentials
         kwargs["azure_ad_token_provider"] = auth.openai_token_provider
         kwargs["use_azure_ad"] = True
 
-    return AzureOpenAI(**kwargs)
+    return LlamaIndexAzureOpenAI(**kwargs)
 
 def __create_openai_client(openaiConfig: OpenAISettings, auth: ContentLoadingCredentials) -> AzureOpenAI:
 
