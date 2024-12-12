@@ -23,10 +23,14 @@
     "DOCUMENT_STORAGE_ACCOUNT__queueServiceUri": "<storage account queue service uri>",
     "StorageAccountName": "<storage account name>",
     "StorageAccountKey": "<storage account key>",
+    "PIIDetectionSource": "<AzureCognitiveServices or Presidio>",
     "PIIEndpoint": "<cognitive services endpoint uri>",
   // The PII categories that will cause the document to be rejected and not indexed
   // Remove this line to allow all PII categories
+  // For Azure Cognitive Services, 
   // See https://learn.microsoft.com/en-us/azure/ai-services/language-service/personally-identifiable-information/concepts/entity-categories
+  // For Presidio,
+  // See https://microsoft.github.io/presidio/supported_entities/
     "PIICategories": "Person,Email,PhoneNumber,Address,USSocialSecurityNumber,CreditCardNumber",
   // The minimum confidence level for discovered PII entities to be cause the document to be rejected
   // Scale from 0.0 to 1.0
