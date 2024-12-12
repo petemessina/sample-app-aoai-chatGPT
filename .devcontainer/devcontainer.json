@@ -35,5 +35,7 @@
     "hostRequirements": {
         "memory": "8gb"
     },
-    "postCreateCommand": "python -m pip install --upgrade pip"
+    "postCreateCommand": "python -m pip install --upgrade pip",
+    "secrets": {
+    }
 }
