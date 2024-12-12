@@ -24,9 +24,9 @@ class OpenAISettings(BaseSettings):
     endpoint: str
     apiVersion: str
     modelName: str
-    modelDeployment: str
+    deploymentName: str
     embeddingModelName: str
-    embeddingModelDeployment: str
+    embeddingDeploymentName: str
 
 class StorageSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix='StorageAccount', extra='ignore')
