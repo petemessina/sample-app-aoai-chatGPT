@@ -1,14 +1,15 @@
-from typing import List, Literal, Optional
+from typing import Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class ContentLoadingSettings():
     def __init__(self):
         self.cosmos = CosmosSettings()
-        self.openai = OpenAISettings()
+        self.openai = AzureOpenAISettings()
         self.storage = StorageSettings()
         self.pii = PIISettings()
         self.image = ImageSettings()
+        self.multiModalModel = AzureMultiModalModelSettings()
 
 class CosmosSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix='CosmosDB', extra='ignore')
@@ -18,8 +19,8 @@ class CosmosSettings(BaseSettings):
     chunkContainer: str = Field(validation_alias='CosmosDBContainer')
     statusContainer: str = Field(validation_alias='CosmosDBDocumentStatusContainer')
 
-class OpenAISettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix='OpenAI', extra='ignore')
+class AzureOpenAISettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix='AzureOpenAI', extra='ignore')
     apiKey: Optional[str] = None
     endpoint: str
     apiVersion: str
@@ -45,4 +46,5 @@ class ImageSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix='SupportedImage', extra='ignore')
     fileTypes: str
 
-
+class AzureMultiModalModelSettings(AzureOpenAISettings):
+    model_config = SettingsConfigDict(env_prefix='MultiModalAzureOpenAI', extra='ignore')
