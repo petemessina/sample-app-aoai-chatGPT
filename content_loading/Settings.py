@@ -33,6 +33,7 @@ class StorageSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix='StorageAccount', extra='ignore')
     accountName: str = Field(validation_alias='StorageAccountName')
     key: Optional[str] = None
+    deleteStagedDocuments: bool = Field(default=True)
 
 class PIISettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix='PII', extra='ignore')

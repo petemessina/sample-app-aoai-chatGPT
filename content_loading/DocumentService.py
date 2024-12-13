@@ -16,6 +16,7 @@ class DocumentService:
     def update_document_status(self, document: Document, status: str):
         document_id: str = document.metadata['master_document_id']
         user_id: str = document.metadata['user_principal_id']
+        conversation_id: str = document.metadata['conversation_id']
         patch_operations = [
             { 'op': 'replace', 'path': '/status', 'value': status }
         ]
@@ -23,5 +24,20 @@ class DocumentService:
         self.__container_proxy.patch_item(
             item=document_id,
             partition_key=user_id,
+            session_token=conversation_id,
             patch_operations=patch_operations
+        )
+    
+    def delete_documents(self, documents: List[Document]): 
+        for document in documents:
+            self.delete_document(document)
+        
+    def delete_document(self, document: Document):
+        document_id: str = document.metadata['master_document_id']
+        user_id: str = document.metadata['user_principal_id']
+        conversation_id: str = document.metadata['conversation_id']
+        self.__container_proxy.delete_item(
+            item=document_id,
+            partition_key=user_id,
+            session_token=conversation_id
         )

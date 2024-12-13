@@ -45,7 +45,8 @@ def blob_trigger(indexBlob: func.InputStream):
             document_service=document_service,
             llm=llm,
             vector_store=vector_store,
-            embed_model=embed_model
+            embed_model=embed_model,
+            deleteStagedDocuments=config.storage.deleteStagedDocuments,
         )
         
         image_file_types: List[str] = config.image.fileTypes.split(",")

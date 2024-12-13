@@ -13,19 +13,22 @@ class LlamaIndexService:
         document_service: DocumentService,
         llm: AzureOpenAI, 
         vector_store: VectorStore,
-        embed_model: AzureOpenAIEmbedding
+        embed_model: AzureOpenAIEmbedding,
+        deleteStagedDocuments: bool = True
     ):
         self.__document_service = document_service
         self.__llm = llm
         self.__vector_store = vector_store
         self.__embed_model = embed_model
+        self.__deleteStagedDocuments = deleteStagedDocuments
 
     # Index the documents
     # feed in document update service
     def index_documents(self, loader: BaseReader) -> VectorStoreIndex:
         
         documents = loader.load_data()
-        self.__document_service.update_documents_status(documents, "Indexing")
+        doc_service = self.__document_service
+        doc_service.update_documents_status(documents, "Indexing")
 
         storage_context = StorageContext.from_defaults(vector_store=self.__vector_store)
         Settings.llm = self.__llm
@@ -35,6 +38,10 @@ class LlamaIndexService:
             documents, storage_context=storage_context
         )
 
-        self.__document_service.update_documents_status(documents, "Indexed")
+        doc_service.update_documents_status(documents, "Indexed")
+
+        should_delete = self.__deleteStagedDocuments
+        if(should_delete):
+            doc_service.delete_documents(documents=documents)
 
         return index
