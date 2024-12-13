@@ -15,7 +15,9 @@ from Credentials import ContentLoadingCredentials
 
 from AzStorageBlobReader import AzStorageBlobReader
 from AzureCosmosDBNoSqlVectorSearch import AzureCosmosDBNoSqlVectorSearch
-from PIIServiceReaderFilter import PIIServiceReaderFilter, PIIDetectionError
+from PIIDetection import PIIDetectionError
+from PresidioReaderFilter import PresidioReaderFilter
+from PIIServiceReaderFilter import PIIServiceReaderFilter
 from image_model_reader import ImageModelReader
 from llama_index_service import LlamaIndexService
 from DocumentService import DocumentService
@@ -135,13 +137,19 @@ def __create_composite_loader__(
     except KeyError:
         min_confidence = DEFAULT_MIN_CONFIDENCE
 
-    
-    pii_filter = PIIServiceReaderFilter(
-        reader=blob_reader, 
-        endpoint=pii_endpoint,
-        pii_categories=pii_categories, 
-        min_confidence=min_confidence,
-        credentials=auth)
+    if (piiConfig.detectionSource == "Presidio"):
+        pii_filter = PresidioReaderFilter(
+            reader=blob_reader, 
+            endpoint=pii_endpoint,
+            pii_categories=pii_categories, 
+            min_confidence=min_confidence)
+    else:
+        pii_filter = PIIServiceReaderFilter(
+            reader=blob_reader, 
+            endpoint=pii_endpoint,
+            pii_categories=pii_categories, 
+            min_confidence=min_confidence,
+            credentials=auth)
 
     return pii_filter
 
