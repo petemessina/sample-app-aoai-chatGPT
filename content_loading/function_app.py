@@ -181,7 +181,6 @@ def __create_openai_client(openaiConfig: OpenAISettings, auth: ContentLoadingCre
         kwargs["api_key"] = openaiConfig.apiKey
     else:
         kwargs["azure_ad_token_provider"] = auth.openai_token_provider
-        kwargs["use_azure_ad"] = True
 
     return AzureOpenAI(**kwargs)
 
