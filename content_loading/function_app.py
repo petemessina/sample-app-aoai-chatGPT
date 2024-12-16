@@ -10,7 +10,7 @@ from openai import AzureOpenAI
 
 from typing import List
 
-from Settings import ContentLoadingSettings, CosmosSettings, OpenAISettings, StorageSettings, PIISettings, ImageSettings
+from Settings import ContentLoadingSettings, CosmosSettings, OpenAISettings, StorageSettings, PIISettings
 from Credentials import ContentLoadingCredentials
 
 from AzStorageBlobReader import AzStorageBlobReader
@@ -46,7 +46,6 @@ def blob_trigger(indexBlob: func.InputStream):
             llm=llm,
             vector_store=vector_store,
             embed_model=embed_model,
-            deleteStagedDocuments=config.storage.deleteStagedDocuments,
         )
         
         image_file_types: List[str] = config.image.fileTypes.split(",")
@@ -66,14 +65,14 @@ def blob_trigger(indexBlob: func.InputStream):
     else:
         logging.info(f"Blob {blob_name} indexed successfully.")
     finally:
-        logging.info(f"Deleting blob {blob_name}.")
-        blob_client.delete_blob()
+        if(config.storage.deleteStagedDocuments):
+            logging.info(f"Deleting blob {blob_name}.")
+            blob_client.delete_blob()
         blob_client.close()
     
 def __create_vector_store__(cosmosConfig: CosmosSettings, auth: ContentLoadingCredentials) -> AzureCosmosDBNoSqlVectorSearch:
 
     # Create the Cosmos client
-
     client = CosmosClient(cosmosConfig.endpoint, auth.cosmos_credential)
     partition_key = PartitionKey(path="/userId")
     cosmos_database_properties = {}
@@ -110,7 +109,7 @@ def __create_vector_store__(cosmosConfig: CosmosSettings, auth: ContentLoadingCr
 # Create the Azure Blob Loader
 def __create_composite_loader__(
     blob_client: BlobClient,
-    openai_client: LlamaIndexAzureOpenAI,
+    openai_client: AzureOpenAI,
     img_file_types: List[str],
     piiConfig: PIISettings,
     auth: ContentLoadingCredentials) -> AzStorageBlobReader:
@@ -166,9 +165,10 @@ def __create_openai_client(openaiConfig: OpenAISettings, auth: ContentLoadingCre
 
     logging.info(f"Creating Azure OpenAI MultiModal Model: {openaiConfig.modelName}")
     kwargs = { 
-            "azure_deployment": openaiConfig.deploymentName,
-            "azure_endpoint": openaiConfig.endpoint,
-            "api_version": openaiConfig.apiVersion }
+        "azure_deployment": openaiConfig.deploymentName,
+        "azure_endpoint": openaiConfig.endpoint,
+        "api_version": openaiConfig.apiVersion
+    }
 
     if (openaiConfig.apiKey):
         kwargs["api_key"] = openaiConfig.apiKey

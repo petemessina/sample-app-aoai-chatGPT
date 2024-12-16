@@ -13,14 +13,12 @@ class LlamaIndexService:
         document_service: DocumentService,
         llm: AzureOpenAI, 
         vector_store: VectorStore,
-        embed_model: AzureOpenAIEmbedding,
-        deleteStagedDocuments: bool = True
+        embed_model: AzureOpenAIEmbedding
     ):
         self.__document_service = document_service
         self.__llm = llm
         self.__vector_store = vector_store
         self.__embed_model = embed_model
-        self.__deleteStagedDocuments = deleteStagedDocuments
 
     # Index the documents
     # feed in document update service
@@ -39,9 +37,5 @@ class LlamaIndexService:
         )
 
         doc_service.update_documents_status(documents, "Indexed")
-
-        should_delete = self.__deleteStagedDocuments
-        if(should_delete):
-            doc_service.delete_documents(documents=documents)
 
         return index
