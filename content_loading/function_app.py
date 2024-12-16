@@ -10,7 +10,7 @@ from openai import AzureOpenAI
 
 from typing import List
 
-from Settings import ContentLoadingSettings, CosmosSettings, OpenAISettings, StorageSettings, PIISettings
+from Settings import ContentLoadingSettings, CosmosSettings, StorageSettings, PIISettings, AzureOpenAISettings
 from Credentials import ContentLoadingCredentials
 
 from AzStorageBlobReader import AzStorageBlobReader
@@ -145,7 +145,7 @@ def __create_composite_loader__(
 
     return pii_filter
 
-def __create_llm__(openaiConfig: OpenAISettings, auth: ContentLoadingCredentials) -> LlamaIndexAzureOpenAI:
+def __create_llm__(openaiConfig: AzureOpenAISettings, auth: ContentLoadingCredentials) -> LlamaIndexAzureOpenAI:
     logging.info(f"Creating Azure OpenAI Model: {openaiConfig.modelName}")
 
     kwargs = { "model": openaiConfig.modelName,
@@ -161,7 +161,7 @@ def __create_llm__(openaiConfig: OpenAISettings, auth: ContentLoadingCredentials
 
     return LlamaIndexAzureOpenAI(**kwargs)
 
-def __create_openai_client(openaiConfig: OpenAISettings, auth: ContentLoadingCredentials) -> AzureOpenAI:
+def __create_openai_client(openaiConfig: AzureOpenAISettings, auth: ContentLoadingCredentials) -> AzureOpenAI:
 
     logging.info(f"Creating Azure OpenAI MultiModal Model: {openaiConfig.modelName}")
     kwargs = { 
@@ -179,7 +179,7 @@ def __create_openai_client(openaiConfig: OpenAISettings, auth: ContentLoadingCre
     return AzureOpenAI(**kwargs)
 
 # Create the Azure OpenAI Embedding Model
-def __create_embedding_model__(openaiConfig: OpenAISettings, auth: ContentLoadingCredentials) -> AzureOpenAIEmbedding:
+def __create_embedding_model__(openaiConfig: AzureOpenAISettings, auth: ContentLoadingCredentials) -> AzureOpenAIEmbedding:
     logging.info(f"Creating Azure OpenAI Embedding Model: {openaiConfig.embeddingModelName}")
 
     kwargs = { 

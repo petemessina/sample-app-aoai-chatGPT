@@ -1,7 +1,6 @@
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from azure.core.credentials import AzureKeyCredential
-
-from Settings import ContentLoadingSettings, CosmosSettings, OpenAISettings, StorageSettings, PIISettings, ImageSettings
+from Settings import ContentLoadingSettings
 
 class ContentLoadingCredentials():
     def __init__(self, settings: ContentLoadingSettings):
