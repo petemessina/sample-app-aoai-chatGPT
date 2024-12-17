@@ -25,7 +25,8 @@ class LlamaIndexService:
     def index_documents(self, loader: BaseReader) -> VectorStoreIndex:
         
         documents = loader.load_data()
-        self.__document_service.update_documents_status(documents, "Indexing")
+        doc_service = self.__document_service
+        doc_service.update_documents_status(documents, "Indexing")
 
         storage_context = StorageContext.from_defaults(vector_store=self.__vector_store)
         Settings.llm = self.__llm
@@ -35,6 +36,6 @@ class LlamaIndexService:
             documents, storage_context=storage_context
         )
 
-        self.__document_service.update_documents_status(documents, "Indexed")
+        doc_service.update_documents_status(documents, "Indexed")
 
         return index

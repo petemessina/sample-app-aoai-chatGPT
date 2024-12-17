@@ -7,10 +7,10 @@ from pathlib import Path
 from fsspec import AbstractFileSystem
 from llama_index.core.readers.base import BaseReader
 from llama_index.core.schema import Document, ImageDocument
-from openai import AzureOpenAI
+from openai import OpenAI
 
 class ImageModelReader(BaseReader):
-    def __init__(self, openai_client: AzureOpenAI):
+    def __init__(self, openai_client: OpenAI):
         self.openai_client = openai_client
 
     def _get_image_document(
