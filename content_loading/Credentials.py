@@ -1,7 +1,7 @@
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from azure.core.credentials import AzureKeyCredential
 
-from Settings import ContentLoadingSettings, CosmosSettings, OpenAISettings, StorageSettings, PIISettings, ImageSettings
+from Settings import ContentLoadingSettings
 
 class ContentLoadingCredentials():
     def __init__(self, settings: ContentLoadingSettings):
@@ -27,3 +27,8 @@ class ContentLoadingCredentials():
             self.pii_credential = AzureKeyCredential(settings.pii.apiKey)
         else:
             self.pii_credential = DefaultAzureCredential()
+
+        if (settings.document_intelligence.apiKey):
+            self.document_intelligence_credential = AzureKeyCredential(settings.document_intelligence.apiKey)
+        else:
+            self.document_intelligence_credential = DefaultAzureCredential()

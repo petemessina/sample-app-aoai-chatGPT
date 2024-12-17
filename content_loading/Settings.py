@@ -9,6 +9,8 @@ class ContentLoadingSettings():
         self.storage = StorageSettings()
         self.pii = PIISettings()
         self.image = ImageSettings()
+        self.multiModalModel = AzureMultiModalModelSettings()
+        self.document_intelligence = DocumentIntelligenceSettings()
 
 class CosmosSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix='CosmosDB', extra='ignore')
@@ -46,3 +48,11 @@ class ImageSettings(BaseSettings):
     fileTypes: str
 
 
+class AzureMultiModalModelSettings(OpenAISettings):
+    model_config = SettingsConfigDict(env_prefix='MultiModalAzureOpenAI', extra='ignore')
+
+class DocumentIntelligenceSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix='DocumentIntelligence', extra='ignore')
+    apiKey: Optional[str] = None
+    endpoint: str
+    fileTypes: Optional[str] = []

@@ -4,13 +4,14 @@ import logging
 
 from azure.cosmos import CosmosClient, ContainerProxy, PartitionKey
 from azure.storage.blob import BlobClient
+from azure.ai.documentintelligence import DocumentIntelligenceClient
 from llama_index.llms.azure_openai import AzureOpenAI as LlamaIndexAzureOpenAI
 from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
 from openai import AzureOpenAI
 
 from typing import List
 
-from Settings import ContentLoadingSettings, CosmosSettings, OpenAISettings, StorageSettings, PIISettings, ImageSettings
+from Settings import ContentLoadingSettings, CosmosSettings, OpenAISettings, StorageSettings, PIISettings, ImageSettings, DocumentIntelligenceSettings
 from Credentials import ContentLoadingCredentials
 
 from AzStorageBlobReader import AzStorageBlobReader
@@ -19,6 +20,7 @@ from PIIDetection import PIIDetectionError
 from PresidioReaderFilter import PresidioReaderFilter
 from PIIServiceReaderFilter import PIIServiceReaderFilter
 from image_model_reader import ImageModelReader
+from document_intelligence_reader import DocumentIntelligenceReader
 from llama_index_service import LlamaIndexService
 from DocumentService import DocumentService
 
@@ -42,6 +44,7 @@ def blob_trigger(indexBlob: func.InputStream):
 
         llm = __create_llm__(config.openai, auth)
         openai_client = __create_openai_client(config.openai, auth)
+        document_intelligence_client = __create_document_intelligence_client(config.document_intelligence, auth)
         embed_model = __create_embedding_model__(config.openai, auth)
         llama_index_service: LlamaIndexService = LlamaIndexService(
             document_service=document_service,
@@ -51,7 +54,16 @@ def blob_trigger(indexBlob: func.InputStream):
         )
         
         image_file_types: List[str] = config.image.fileTypes.split(",")
-        loader = __create_composite_loader__(blob_client, openai_client, image_file_types, config.pii, auth)
+        doc_intelligence_file_types: List[str] = config.document_intelligence.fileTypes.split(",")
+        loader = __create_composite_loader__(
+            blob_client=blob_client,
+            openai_client=openai_client,
+            document_intelligence_client=document_intelligence_client,
+            img_file_types=image_file_types,
+            doc_intelligence_file_types=doc_intelligence_file_types,
+            piiConfig=config.pii,
+            auth=auth
+        )
         
         llama_index_service.index_documents(loader)
         
@@ -112,7 +124,9 @@ def __create_vector_store__(cosmosConfig: CosmosSettings, auth: ContentLoadingCr
 def __create_composite_loader__(
     blob_client: BlobClient,
     openai_client: LlamaIndexAzureOpenAI,
+    document_intelligence_client: DocumentIntelligenceClient,
     img_file_types: List[str],
+    doc_intelligence_file_types: List[str],
     piiConfig: PIISettings,
     auth: ContentLoadingCredentials) -> AzStorageBlobReader:
 
@@ -120,10 +134,16 @@ def __create_composite_loader__(
     logging.info(f"Creating Azure Blob Loader for container {blob_properties.container} and blob {blob_properties.name}.")
 
     image_model_reader = ImageModelReader(openai_client=openai_client)
-    readers = dict(map(lambda type: (type, image_model_reader), img_file_types))
+    image_readers = dict(map(lambda type: (type, image_model_reader), img_file_types))
     blob_reader = AzStorageBlobReader(blob_client=blob_client)
     blob_reader.file_extractor = blob_reader.file_extractor or {}
-    blob_reader.file_extractor.update(readers)
+    blob_reader.file_extractor.update(image_readers)
+
+    if (doc_intelligence_file_types and len(doc_intelligence_file_types) > 0):
+        document_intelligence_reader = DocumentIntelligenceReader(document_intelligence_client)
+        document_intelligence_readers = dict(map(lambda type: (type, document_intelligence_reader), doc_intelligence_file_types))
+        blob_reader.file_extractor.update(document_intelligence_readers)
+
     pii_endpoint = piiConfig.endpoint
     
     try:
@@ -183,6 +203,15 @@ def __create_openai_client(openaiConfig: OpenAISettings, auth: ContentLoadingCre
         kwargs["azure_ad_token_provider"] = auth.openai_token_provider
 
     return AzureOpenAI(**kwargs)
+
+# Create the Document Intelligence Client
+def __create_document_intelligence_client(documentIntelligenceConfig: DocumentIntelligenceSettings, auth: ContentLoadingCredentials) -> DocumentIntelligenceClient:
+    logging.info(f"Creating Document Intelligence Client: {documentIntelligenceConfig.endpoint}")
+
+    return DocumentIntelligenceClient(
+        endpoint=documentIntelligenceConfig.endpoint,
+        credential=auth.document_intelligence_credential
+    )
 
 # Create the Azure OpenAI Embedding Model
 def __create_embedding_model__(openaiConfig: OpenAISettings, auth: ContentLoadingCredentials) -> AzureOpenAIEmbedding:
