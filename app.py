@@ -999,7 +999,7 @@ async def generate_title(conversation_messages) -> str:
     try:
         azure_openai_client = await init_openai_client()
         response = await azure_openai_client.chat.completions.create(
-            model=app_settings.azure_openai.model, messages=messages, temperature=1, max_tokens=64
+            model=app_settings.azure_openai.deployment, messages=messages, temperature=1, max_tokens=64
         )
 
         title = response.choices[0].message.content
